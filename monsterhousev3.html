@@ -293,8 +293,10 @@
             <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
             <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
             <div id="grace-period-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">- Enemies can't hear you</div>
+            <div id="enemy-spawn-indicator" style="margin-top:6px;color:#ffaa00;font-size:12px;display:none;">⚠️ Enemy spawning...</div>
             <div id="shift-timer" style="margin-top:6px;color:#ffaa00;font-size:12px;">Next shift: --</div>
             <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
+            <div id="dpi-info" style="margin-top:6px;color:#aaa;font-size:12px;display:none;">Mouse: Detecting DPI...</div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Floor: <span id="hud-floor">1</span> | F: Flashlight <span id="hud-flash">Off</span> | Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch</div>
             <div id="rush-warning" style="margin-top:6px;color:#ff4444;font-size:14px;font-weight:bold;display:none;">⚠️ RUSH! HIDE NOW!</div>
@@ -318,7 +320,7 @@
             <div class="row"><label>Mouse DPI</label><button id="btn-detect-dpi" class="menu-button" style="width:100%;margin-top:4px;">Detect Mouse DPI</button></div>
             <div class="row" style="font-size:11px;color:#888;margin-top:2px;">Automatically adjusts rotation sensitivity for your mouse</div>
             <div class="menu-actions">
-                <button id="btn-close-settings" class="btn-close-settings">Close</button>
+                <button id="btn-close-settings" class="menu-button">Close</button>
             </div>
         </div>
         <div id="summary-panel">
@@ -378,6 +380,7 @@ const gracePeriodIndicator = document.getElementById('grace-period-indicator');
 const enemySpawnIndicator = document.getElementById('enemy-spawn-indicator');
 const pauseIndicator = document.getElementById('pause-indicator');
 const shiftTimer = document.getElementById('shift-timer');
+const dpiInfo = document.getElementById('dpi-info');
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -433,8 +436,10 @@ function initializePRNG() {
     prng = mulberry32(defaultSeed);
 }
 
-// Load saved DPI settings on game initialization
-loadDPISettings();
+// Initialize PRNG immediately to avoid undefined function errors
+initializePRNG();
+
+// DPI settings will be loaded after DOM elements are created
 
 // DPI detection and adjustment functions
 function detectMouseDPI() {
@@ -529,6 +534,9 @@ let assets = {
     goldKeySprite: null,
     containerClosed: null,
     containerOpen: null,
+    containerCrate: null,
+    containerCabinet: null,
+    containerDrawer: null,
     bronzeDoorTexture: null,
     flashlightSprite: null,
     vitaminsSprite: null,
@@ -671,6 +679,47 @@ function generateAssets() {
     gCtx.fillStyle = '#3d2f24'; gCtx.fillRect(6, 10, TILE_SIZE-12, 6); // Smaller top
     gCtx.fillStyle = '#222'; gCtx.fillRect(TILE_SIZE/2 - 6, TILE_SIZE/2 - 1, 12, 3); // Smaller lock
     assets.containerOpen = new Image(); assets.containerOpen.src = genCanvas.toDataURL();
+    
+    // Container Crate - Wooden crate style
+    gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
+    gCtx.fillStyle = '#8B4513'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    gCtx.strokeStyle = '#654321'; gCtx.lineWidth = 1;
+    // Draw crate slats
+    for (let i = 0; i < TILE_SIZE; i += 8) {
+        gCtx.beginPath(); gCtx.moveTo(i, 0); gCtx.lineTo(i, TILE_SIZE); gCtx.stroke();
+    }
+    for (let i = 0; i < TILE_SIZE; i += 8) {
+        gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
+    }
+    assets.containerCrate = new Image(); assets.containerCrate.src = genCanvas.toDataURL();
+    
+    // Container Cabinet - Tall wooden cabinet
+    gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
+    gCtx.fillStyle = '#8B4513'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    gCtx.strokeStyle = '#654321'; gCtx.lineWidth = 2;
+    gCtx.strokeRect(2, 2, TILE_SIZE-4, TILE_SIZE-4);
+    // Draw cabinet door lines
+    gCtx.beginPath(); gCtx.moveTo(TILE_SIZE/2, 2); gCtx.lineTo(TILE_SIZE/2, TILE_SIZE-2); gCtx.stroke();
+    // Draw handle
+    gCtx.fillStyle = '#FFD700'; gCtx.fillRect(TILE_SIZE/2 + 4, TILE_SIZE/2 - 2, 3, 4);
+    assets.containerCabinet = new Image(); assets.containerCabinet.src = genCanvas.toDataURL();
+    
+    // Container Drawer - Small drawer unit
+    gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
+    gCtx.fillStyle = '#8B4513'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    gCtx.strokeStyle = '#654321'; gCtx.lineWidth = 1;
+    gCtx.strokeRect(2, 2, TILE_SIZE-4, TILE_SIZE-4);
+    // Draw drawer lines
+    for (let i = 0; i < 3; i++) {
+        const y = 4 + (i * (TILE_SIZE-8)/3);
+        gCtx.beginPath(); gCtx.moveTo(2, y); gCtx.lineTo(TILE_SIZE-2, y); gCtx.stroke();
+    }
+    // Draw drawer handles
+    for (let i = 0; i < 3; i++) {
+        const y = 6 + (i * (TILE_SIZE-8)/3);
+        gCtx.fillStyle = '#FFD700'; gCtx.fillRect(TILE_SIZE/2 - 2, y, 4, 2);
+    }
+    assets.containerDrawer = new Image(); assets.containerDrawer.src = genCanvas.toDataURL();
 
     // Flashlight Sprite
     gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
@@ -1757,23 +1806,66 @@ function resetGame() {
             cx = c.x + 0.5 + chosen[0]*0.35;
             cy = c.y + 0.5 + chosen[1]*0.35;
         }
-        sprites.push({ x: cx, y: cy, type: 'container', opened: false, contains: null, texture: assets.containerClosed, snap: chosen });
+        
+        // Choose random container type for variety
+        const containerTypes = [
+            { texture: assets.containerClosed, name: 'chest' },
+            { texture: assets.containerCrate, name: 'crate' },
+            { texture: assets.containerCabinet, name: 'cabinet' },
+            { texture: assets.containerDrawer, name: 'drawer' }
+        ];
+        const containerType = containerTypes[Math.floor(prng() * containerTypes.length)];
+        
+        sprites.push({ 
+            x: cx, 
+            y: cy, 
+            type: 'container', 
+            containerType: containerType.name,
+            opened: false, 
+            contains: null, 
+            texture: containerType.texture, 
+            snap: chosen 
+        });
     }
     console.log("Placed", sprites.filter(s => s.type === 'container').length, "containers total");
 
-    // Place varied loot in containers
+    // Place varied loot in containers with stage-specific adjustments
     const containers = sprites.filter(s => s.type === 'container');
     if (containers.length > 0) {
-        // Place gold key in one container
-        const goldKeyIdx = Math.floor(prng() * containers.length);
-        containers[goldKeyIdx].contains = { type: 'goldKey' };
+        // Stage-specific gold key placement - higher chances in early stages
+        let goldKeyChance = 0.8; // 80% chance for stage 1
+        if (stageIndex === 1) goldKeyChance = 0.9; // 90% chance for stage 2
+        else if (stageIndex === 2) goldKeyChance = 0.85; // 85% chance for stage 3
+        else if (stageIndex >= 3) goldKeyChance = 0.7; // 70% chance for later stages
         
-        // Place other items in random containers
-        const itemTypes = ['flashlight', 'vitamins', 'lockpick', 'bronzeKey'];
+        if (prng() < goldKeyChance) {
+            // Place gold key in a random container
+            const goldKeyIdx = Math.floor(prng() * containers.length);
+            containers[goldKeyIdx].contains = { type: 'goldKey' };
+            console.log(`Placed gold key in container ${goldKeyIdx} for stage ${stageIndex + 1}`);
+        }
+        
+        // Place other items with stage-specific chances
+        const itemTypes = ['flashlight', 'vitamins', 'lockpick', 'bronzeKey', 'smokeBomb', 'noiseMaker'];
+        const stageMultipliers = [1.0, 1.2, 1.1, 0.9, 0.8]; // Stage 1-5 multipliers
+        
         for (let itemType of itemTypes) {
-            if (prng() < 0.6) { // 60% chance for each item type
+            let baseChance = 0.6; // Base 60% chance
+            
+            // Adjust chances based on stage
+            if (stageIndex < stageMultipliers.length) {
+                baseChance *= stageMultipliers[stageIndex];
+            }
+            
+            // Special adjustments for early stages
+            if (stageIndex <= 2) {
+                if (itemType === 'bronzeKey') baseChance *= 1.3; // More bronze keys in early stages
+                if (itemType === 'flashlight') baseChance *= 1.2; // More flashlights in early stages
+            }
+            
+            if (prng() < baseChance) {
                 let placed = false;
-                for (let attempts = 0; attempts < 10; attempts++) {
+                for (let attempts = 0; attempts < 15; attempts++) {
                     const idx = Math.floor(prng() * containers.length);
                     if (containers[idx].contains === null) {
                         containers[idx].contains = { type: itemType };
@@ -1789,6 +1881,8 @@ function resetGame() {
                         if (itemType === 'flashlight') texture = assets.flashlightSprite;
                         else if (itemType === 'vitamins') texture = assets.vitaminsSprite;
                         else if (itemType === 'lockpick') texture = assets.lockpickSprite;
+                        else if (itemType === 'smokeBomb') texture = assets.smokeBombSprite;
+                        else if (itemType === 'noiseMaker') texture = assets.noiseMakerSprite;
                         
                         sprites.push({ x: pos.x + 0.5, y: pos.y + 0.5, type: itemType, texture: texture });
                     }
@@ -1796,7 +1890,86 @@ function resetGame() {
             }
         }
         
-        console.log("Placed loot in containers:", containers.filter(c => c.contains).map(c => c.contains.type));
+        // Add some containers with interesting "empty" messages instead of just "empty"
+        const emptyContainers = containers.filter(c => c.contains === null);
+        if (emptyContainers.length > 0) {
+            // Stage-specific empty messages for more variety
+            const stageMessages = {
+                0: [ // Stage 1 - Basement
+                    'Old newspapers and dust.',
+                    'Broken glass and cobwebs.',
+                    'A few rusty nails.',
+                    'Empty food wrappers.',
+                    'A broken pencil.',
+                    'Faded photographs.',
+                    'A torn piece of cloth.',
+                    'Some loose change.',
+                    'A broken watch.',
+                    'Empty medicine bottles.'
+                ],
+                1: [ // Stage 2 - Second floor
+                    'Old magazines and dust.',
+                    'Broken picture frames.',
+                    'Empty jewelry boxes.',
+                    'Torn curtains.',
+                    'A broken mirror.',
+                    'Faded wallpaper samples.',
+                    'Empty perfume bottles.',
+                    'Broken teacups.',
+                    'Old letters.',
+                    'Empty photo albums.'
+                ],
+                2: [ // Stage 3 - Bloody stage
+                    'Blood-stained rags.',
+                    'Broken medical equipment.',
+                    'Empty syringes.',
+                    'Torn bandages.',
+                    'Broken glass vials.',
+                    'Faded medical charts.',
+                    'Empty medicine bottles.',
+                    'Broken scalpels.',
+                    'Old medical books.',
+                    'Empty IV bags.'
+                ],
+                3: [ // Stage 4 - Fourth floor
+                    'Broken electronics.',
+                    'Empty circuit boards.',
+                    'Torn blueprints.',
+                    'Broken tools.',
+                    'Empty fuel cans.',
+                    'Broken machinery parts.',
+                    'Old technical manuals.',
+                    'Empty chemical bottles.',
+                    'Broken gauges.',
+                    'Empty oil cans.'
+                ],
+                4: [ // Stage 5 - Mansion
+                    'Elegant but empty.',
+                    'Fine china dust.',
+                    'Empty wine bottles.',
+                    'Broken crystal.',
+                    'Faded silk.',
+                    'Empty jewelry cases.',
+                    'Broken chandelier pieces.',
+                    'Empty perfume bottles.',
+                    'Torn velvet.',
+                    'Empty silverware boxes.'
+                ]
+            };
+            
+            const currentStageMessages = stageMessages[stageIndex] || stageMessages[0];
+            
+            // Apply interesting messages to 40% of empty containers in early stages, 30% in later stages
+            const messageChance = stageIndex <= 2 ? 0.4 : 0.3;
+            const containersToEnhance = Math.floor(emptyContainers.length * messageChance);
+            for (let i = 0; i < containersToEnhance && i < emptyContainers.length; i++) {
+                const randomMessage = currentStageMessages[Math.floor(prng() * currentStageMessages.length)];
+                emptyContainers[i].emptyMessage = randomMessage;
+            }
+        }
+        
+        console.log(`Placed loot in containers for stage ${stageIndex + 1}:`, containers.filter(c => c.contains).map(c => c.contains.type));
+        console.log(`Gold key chance was ${(goldKeyChance * 100).toFixed(0)}% for this stage`);
     }
     
     enemies = [];
@@ -2379,10 +2552,10 @@ function findSafeSpawnCell() {
             const walls = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy]) => 
                 map[c.y+dy] && map[c.y+dy][c.x+dx] === 1
             ).length;
-        if (walls <= 1) cell = c;
+            if (walls <= 1) cell = c;
         }
     }
-            return cell || findRandomEmptyCell(map);
+    return cell || findRandomEmptyCell(map);
 }
 
 function isPositionWellConnected(x, y) {
@@ -3053,7 +3226,9 @@ function setupInputs() {
     }
 
     mainMenu.addEventListener('click', () => {
+        console.log('Main menu clicked, current state:', currentGameState);
         if ([GAME_STATE.MENU, GAME_STATE.GAMEOVER, GAME_STATE.WON].includes(currentGameState)) {
+            console.log('Starting new run...');
             startRun();
             currentGameState = GAME_STATE.PLAYING;
             mainMenu.style.opacity = '0';
@@ -3210,23 +3385,82 @@ function tryInteract() {
         if (!nearest.opened) {
             nearest.opened = true;
             nearest.texture = assets.containerOpen;
-            if (nearest.contains && nearest.contains.type === 'goldKey') {
-                player.hasGoldKey = true;
-                message.text = 'You found the GOLD key!';
-                message.life = 200;
+            
+            if (nearest.contains) {
+                // Handle different item types
+                switch (nearest.contains.type) {
+                    case 'goldKey':
+                        player.hasGoldKey = true;
+                        message.text = '🎉 You found the GOLD key! 🎉';
+                        message.life = 250;
+                        playSound('keyPickup', 1.0);
+                        break;
+                    case 'bronzeKey':
+                        player.hasBronzeKey = true;
+                        message.text = '🔑 You found a bronze key!';
+                        message.life = 150;
+                        playSound('keyPickup', 0.8);
+                        break;
+                    case 'flashlight':
+                        inventory.flashlight = true;
+                        message.text = '🔦 You found a flashlight! Press F to toggle.';
+                        message.life = 200;
+                        playSound('itemPickup', 0.7);
+                        if (hudFlash) hudFlash.textContent = 'On';
+                        break;
+                    case 'vitamins':
+                        inventory.vitamins += 2;
+                        message.text = '💊 You found vitamins! (+2) Press V to use.';
+                        message.life = 200;
+                        playSound('itemPickup', 0.6);
+                        if (hudVits) hudVits.textContent = String(inventory.vitamins);
+                        break;
+                    case 'lockpick':
+                        inventory.lockpick += 1;
+                        message.text = '🔓 You found a lockpick! (+1) Use on bronze doors.';
+                        message.life = 200;
+                        playSound('itemPickup', 0.8);
+                        if (hudPicks) hudPicks.textContent = String(inventory.lockpick);
+                        break;
+                    case 'smokeBomb':
+                        inventory.smokeBomb += 1;
+                        message.text = '💨 You found a smoke bomb! (+1) Press Q to use.';
+                        message.life = 200;
+                        playSound('itemPickup', 0.7);
+                        if (hudSmoke) hudSmoke.textContent = String(inventory.smokeBomb);
+                        break;
+                    case 'noiseMaker':
+                        inventory.noiseMaker += 1;
+                        message.text = '🔊 You found a noise maker! (+1) Press Z to use.';
+                        message.life = 200;
+                        playSound('itemPickup', 0.7);
+                        if (hudNoise) hudNoise.textContent = String(inventory.noiseMaker);
+                        break;
+                    default:
+                        message.text = 'You found something useful.';
+                        message.life = 100;
+                        break;
+                }
             } else {
-                // Chance to spawn a bronze key on opening if none found yet
-                if (!player.hasBronzeKey && prng() < 0.35) {
-                    player.hasBronzeKey = true;
-                    message.text = 'You found a bronze key.';
-                    message.life = 150;
+                // Handle empty containers with interesting messages
+                if (nearest.emptyMessage) {
+                    message.text = nearest.emptyMessage;
+                    message.life = 120;
                 } else {
-                    message.text = 'It is empty.';
+                    // Fallback empty messages
+                    const fallbackMessages = [
+                        'Nothing useful here.',
+                        'Just dust and cobwebs.',
+                        'Empty and forgotten.',
+                        'Nothing of value.',
+                        'Long since emptied.'
+                    ];
+                    message.text = fallbackMessages[Math.floor(prng() * fallbackMessages.length)];
                     message.life = 100;
                 }
             }
         } else {
-            message.text = 'Already searched.';
+            message.text = 'Already searched thoroughly.';
             message.life = 80;
         }
         return;
@@ -3250,11 +3484,195 @@ function tryInteract() {
     }
 }
 
-// generateMap function removed - no longer needed with the new floor system
+function tryToggleHide() {
+    console.log("tryToggleHide called, current state:", currentGameState);
+    
+    // If player is already hidden, handle exit
+    if (currentGameState === GAME_STATE.HIDDEN) {
+        console.log("Player is hidden, handling exit...");
+        handleClosetExit();
+        return;
+    }
+    
+    // Handle entering closet (only when in PLAYING state)
+    if (currentGameState === GAME_STATE.PLAYING) {
+        let playerTileX = Math.floor(player.x);
+        let playerTileY = Math.floor(player.y);
+        // Closet can be either under player (floor closet) or in front if closet is a wall tile
+        let facingX = Math.floor(player.x + Math.cos(player.angle) * 0.7);
+        let facingY = Math.floor(player.y + Math.sin(player.angle) * 0.7);
+        const onCloset = map[playerTileY][playerTileX] === 4;
+        const facingCloset = (facingX >=0 && facingX < MAP_SIZE && facingY >= 0 && facingY < MAP_SIZE && map[facingY][facingX] === 4);
+        console.log("Player at", playerTileX, playerTileY, "onCloset:", onCloset, "facingCloset:", facingCloset, "map tile:", map[playerTileY][playerTileX]);
+        
+        if(onCloset || facingCloset) {
+            // Check if we can actually exit before entering hidden state
+            let canExit = false;
+            for (let y = 0; y < MAP_SIZE; y++) {
+                for (let x = 0; x < MAP_SIZE; x++) {
+                    if (map[y][x] === 4) { // Found a closet
+                        // Check if there's an accessible open tile in front of it
+                        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+                        for (let [dx, dy] of directions) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+                                // Check if this position is accessible
+                                let accessible = false;
+                                const checkDirections = [[1,0], [-1,0], [0,1], [0,-1]];
+                                for (let [cdx, cdy] of checkDirections) {
+                                    const cx = nx + cdx;
+                                    const cy = ny + cdy;
+                                    if (cx >= 0 && cx < MAP_SIZE && cy >= 0 && cy < MAP_SIZE && map[cy][cx] === 0) {
+                                        accessible = true;
+                                        break;
+                                    }
+                                }
+                                if (accessible) {
+                                    canExit = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (canExit) break;
+                    }
+                }
+                if (canExit) break;
+            }
+            
+            if (!canExit) {
+                message.text = "This closet is too cramped to hide in safely."; message.life = 120;
+                return;
+            }
+            
+            // Position player to see through the closet slit
+            if (onCloset) {
+                // Player is on a closet floor tile - position them to face the opening
+                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
+                let facingDirection = null;
+                for (let [dx,dy] of neighbors) {
+                    const nx = playerTileX + dx;
+                    const ny = playerTileY + dy;
+                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 1) {
+                        // Found a wall - face away from it (toward the opening)
+                        facingDirection = [-dx, -dy];
+                        break;
+                    }
+                }
+                if (facingDirection) {
+                    player.angle = Math.atan2(facingDirection[1], facingDirection[0]);
+                }
+            } else if (facingCloset) {
+                // Player is facing a closet wall - position them inside
+                const closetX = facingX;
+                const closetY = facingY;
+                // Find the opening direction
+                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
+                for (let [dx,dy] of neighbors) {
+                    const nx = closetX + dx;
+                    const ny = closetY + dy;
+                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 0) {
+                        // Found the opening - face toward it
+                        player.angle = Math.atan2(dy, dx);
+                        break;
+                    }
+                }
+            }
+            
+            // Enter hidden state
+            currentGameState = GAME_STATE.HIDDEN;
+            player.closetEntryTime = Date.now();
+            player.closetExitTime = null;
+            
+            // Play closet opening sound
+            playSound('closetOpen', 0.8);
+            
+            // Show hidden indicator
+            if (hiddenIndicator) hiddenIndicator.style.display = 'block';
+            
+            message.text = "You're hidden in the closet. Press H to exit.";
+            message.life = 200;
+            
+            console.log("Successfully entered closet, new state:", currentGameState);
+        } else {
+            message.text = "No safe closet nearby to hide in."; message.life = 120;
+        }
+    }
+}
 
-// spawnEnemies function removed - no longer needed with the new floor system
-
-// placeSprites function removed - no longer needed with the new floor system
+function handleClosetExit() {
+    console.log("handleClosetExit called");
+    
+    // Find a safe exit position
+    let placed = false;
+    let exitPositions = [];
+    
+    // Find all closet openings
+    for (let y = 0; y < MAP_SIZE; y++) {
+        for (let x = 0; x < MAP_SIZE; x++) {
+            if (map[y][x] === 4) {
+                const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+                for (let [dx, dy] of directions) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+                        if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
+                            exitPositions.push({
+                                x: nx, y: ny,
+                                closetX: x, closetY: y,
+                                dx: dx, dy: dy,
+                                accessibility: countAccessibleNeighbors(nx, ny)
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Sort by accessibility
+    exitPositions.sort((a, b) => b.accessibility - a.accessibility);
+    
+    // Try to place player
+    for (let pos of exitPositions) {
+        if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y)) {
+            player.x = pos.x + 0.5;
+            player.y = pos.y + 0.5;
+            player.angle = Math.atan2(pos.dy, pos.dx);
+            placed = true;
+            console.log("Exited closet, placed player at:", pos.x, pos.y);
+            break;
+        }
+    }
+    
+    // Fallback strategies
+    if (!placed) {
+        let bestPosition = findBestSafePosition();
+        if (bestPosition && !isWallCollision(bestPosition.x, bestPosition.y)) {
+            player.x = bestPosition.x + 0.5;
+            player.y = bestPosition.y + 0.5;
+            placed = true;
+            console.log("Closet exit fallback position:", bestPosition.x, bestPosition.y);
+        }
+    }
+    
+    if (!placed) {
+        player.x = 1.5;
+        player.y = 1.5;
+        console.log("Closet exit emergency spawn");
+    }
+    
+    // Reset state
+    currentGameState = GAME_STATE.PLAYING;
+    player.closetEntryTime = null;
+    player.closetExitTime = Date.now();
+    if (hiddenIndicator) hiddenIndicator.style.display = 'none';
+    
+    // Play closet closing sound
+    playSound('closetClose', 0.6);
+    
+    console.log("Successfully exited closet, new state:", currentGameState, "placed at:", player.x, player.y);
+}
 
 function useStairs(direction) {
     if (direction === 'up') {
@@ -3620,97 +4038,57 @@ function tryToggleHide() {
                     const nx = closetX + dx;
                     const ny = closetY + dy;
                     if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 0) {
-                        // This is the opening - move player to the closet interior
-                        const interiorX = closetX - dx;
-                        const interiorY = closetY - dy;
-                        if (interiorX>=0 && interiorX<MAP_SIZE && interiorY>=0 && interiorY<MAP_SIZE && map[interiorY][interiorX] === 0) {
-                            player.x = interiorX + 0.5;
-                            player.y = interiorY + 0.5;
-                            // Face toward the opening
-                            player.angle = Math.atan2(dy, dx);
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            currentGameState = GAME_STATE.HIDDEN;
-            player.closetEntryTime = Date.now(); // Track when player entered closet
-            message.text = "You are hidden in the closet. Press H to exit."; message.life = 200;
-            if (hiddenIndicator) hiddenIndicator.style.display = 'block';
-            
-            // Reset crouching when entering hiding mode
-            playerAbilities.crouching = false;
-            playerAbilities.stealthMode = false;
-            
-            // Play closet opening sound
-            playSound('closetOpen', 0.8);
-            
-            console.log("Entered hidden state, new state:", currentGameState);
-            
-            // Ensure player is facing away from the closet wall for better visibility
-            if (onCloset || facingCloset) {
-                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-                for (let [dx,dy] of neighbors) {
-                    const nx = Math.floor(player.x) + dx;
-                    const ny = Math.floor(player.y) + dy;
-                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 1) {
-                        // Face away from the wall
-                        player.angle = Math.atan2(-dy, -dx);
+                        // Found the opening - face toward it
+                        player.angle = Math.atan2(dy, dx);
                         break;
                     }
                 }
             }
+            
+            // Enter hidden state
+            currentGameState = GAME_STATE.HIDDEN;
+            player.closetEntryTime = Date.now();
+            player.closetExitTime = null;
+            
+            // Play closet opening sound
+            playSound('closetOpen', 0.8);
+            
+            // Show hidden indicator
+            if (hiddenIndicator) hiddenIndicator.style.display = 'block';
+            
+            message.text = "You're hidden in the closet. Press H to exit.";
+            message.life = 200;
+            
+            console.log("Successfully entered closet, new state:", currentGameState);
+        } else {
+            message.text = "No safe closet nearby to hide in."; message.life = 120;
         }
-    } else {
-        message.text = "Nowhere to hide here."; message.life = 100;
     }
 }
 
 function handleClosetExit() {
-    console.log("Attempting to exit closet... current state:", currentGameState, "player position:", player.x, player.y);
+    console.log("handleClosetExit called");
     
-    // Improved exit strategy with wall collision checks and house shift consideration
+    // Find a safe exit position
     let placed = false;
     let exitPositions = [];
     
-    // Strategy 1: Find all closet openings and validate them
-    // Note: The map may have shifted while player was hidden, so we need to find
-    // the best available exit position regardless of where the player originally entered
+    // Find all closet openings
     for (let y = 0; y < MAP_SIZE; y++) {
         for (let x = 0; x < MAP_SIZE; x++) {
-            if (map[y][x] === 4) { // Found a closet
-                // Check all 4 directions for open tiles in front of the closet
+            if (map[y][x] === 4) {
                 const directions = [[1,0], [-1,0], [0,1], [0,-1]];
                 for (let [dx, dy] of directions) {
                     const nx = x + dx;
                     const ny = y + dy;
                     if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
-                        // Validate this position is truly accessible and not a wall
                         if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
-                            // Additional check: ensure this exit has a clear path away from the closet
-                            let hasClearPath = false;
-                            const pathDirections = [[1,0], [-1,0], [0,1], [0,-1]];
-                            for (let [pdx, pdy] of pathDirections) {
-                                const px = nx + pdx;
-                                const py = ny + pdy;
-                                if (px >= 0 && px < MAP_SIZE && py >= 0 && py < MAP_SIZE && map[py][px] === 0) {
-                                    if (px !== x || py !== y) { // Not back into the closet
-                                        hasClearPath = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            
-                            if (hasClearPath) {
-                                exitPositions.push({
-                                    x: nx, y: ny,
-                                    closetX: x, closetY: y,
-                                    dx: dx, dy: dy,
-                                    accessibility: countAccessibleNeighbors(nx, ny),
-                                    pathQuality: hasClearPath ? 1 : 0
-                                });
-                            }
+                            exitPositions.push({
+                                x: nx, y: ny,
+                                closetX: x, closetY: y,
+                                dx: dx, dy: dy,
+                                accessibility: countAccessibleNeighbors(nx, ny)
+                            });
                         }
                     }
                 }
@@ -3718,51 +4096,42 @@ function handleClosetExit() {
         }
     }
     
-    // Sort by accessibility and path quality (most accessible with clear paths first)
-    exitPositions.sort((a, b) => {
-        if (a.pathQuality !== b.pathQuality) return b.pathQuality - a.pathQuality;
-        return b.accessibility - a.accessibility;
-    });
+    // Sort by accessibility
+    exitPositions.sort((a, b) => b.accessibility - a.accessibility);
     
-    // Try to place player in the best accessible position
-    console.log("Found", exitPositions.length, "exit positions, attempting placement...");
+    // Try to place player
     for (let pos of exitPositions) {
         if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y)) {
             player.x = pos.x + 0.5;
             player.y = pos.y + 0.5;
-            // Face away from the closet
             player.angle = Math.atan2(pos.dy, pos.dx);
             placed = true;
-            console.log("Placed player at validated exit position:", pos.x, pos.y, "accessibility:", pos.accessibility, "pathQuality:", pos.pathQuality);
+            console.log("Exited closet, placed player at:", pos.x, pos.y);
             break;
         }
     }
     
-    // Strategy 2: If no closet exits work, find any safe open area
-    // This is especially important after house shifts when the original closet may have moved
+    // Fallback strategies
     if (!placed) {
         let bestPosition = findBestSafePosition();
         if (bestPosition && !isWallCollision(bestPosition.x, bestPosition.y)) {
             player.x = bestPosition.x + 0.5;
             player.y = bestPosition.y + 0.5;
             placed = true;
-            console.log("Placed player in fallback safe position at", bestPosition.x, bestPosition.y, "(house shift fallback)");
+            console.log("Closet exit fallback position:", bestPosition.x, bestPosition.y);
         }
     }
     
-    // Strategy 3: Emergency spawn area (guaranteed to work)
-    // This handles extreme cases where house shifts have made all other positions inaccessible
     if (!placed) {
         player.x = 1.5;
         player.y = 1.5;
-        placed = true;
-        console.log("Emergency fallback: placed player at spawn area (house shift debug emergency)");
+        console.log("Closet exit emergency spawn");
     }
     
-    console.log("About to change game state from HIDDEN to PLAYING");
+    // Reset state
     currentGameState = GAME_STATE.PLAYING;
-    player.closetEntryTime = null; // Reset closet entry time
-    message.text = "You emerge from the darkness."; message.life = 120;
+    player.closetEntryTime = null;
+    player.closetExitTime = Date.now();
     if (hiddenIndicator) hiddenIndicator.style.display = 'none';
     
     // Play closet closing sound
@@ -4948,15 +5317,18 @@ function gameLoop() {
 // --- START THE GAME ---
 document.addEventListener('DOMContentLoaded', () => {
     try {
+        console.log('DOM loaded, initializing game...');
         initializePRNG();
         generateAssets();
         setupInputs();
         initGamepad();
         initAudio();
+        loadDPISettings(); // Load DPI settings after DOM is ready
         renderLeaderboard();
         mainMenu.style.opacity = '1';
         mainMenu.style.pointerEvents = 'auto';
         currentGameState = GAME_STATE.MENU;
+        console.log('Game initialized, starting game loop...');
         gameLoop();
     } catch (error) {
         console.error('Error starting game:', error);
@@ -5081,6 +5453,40 @@ function isPositionAccessible(x, y) {
     return openNeighbors >= 2;
 }
 
+function isPositionWellConnected(x, y) {
+    // Check if position has good connectivity to the rest of the map
+    // Count accessible neighbors and ensure path to multiple areas
+    let accessibleNeighbors = 0;
+    let hasPathToOpenArea = false;
+    
+    // Check immediate neighbors
+    for (let [dx, dy] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+            accessibleNeighbors++;
+            
+            // Check if this neighbor leads to a more open area
+            for (let [dx2, dy2] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+                const nx2 = nx + dx2;
+                const ny2 = ny + dy2;
+                if (nx2 >= 0 && nx2 < MAP_SIZE && ny2 >= 0 && ny2 < MAP_SIZE && map[ny2][nx2] === 0) {
+                    hasPathToOpenArea = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // For stage 1, be less strict about connectivity requirements
+    if (stageIndex === 0) {
+        return accessibleNeighbors >= 1; // Only need 1 accessible neighbor for stage 1
+    }
+    
+    // Position is well connected if it has at least 2 accessible neighbors and leads to open areas
+    return accessibleNeighbors >= 2 && hasPathToOpenArea;
+}
+
 function countAccessibleNeighbors(x, y) {
     let count = 0;
     const directions = [[1,0], [-1,0], [0,1], [0,-1], [1,1], [1,-1], [-1,1], [-1,-1]];
@@ -5194,7 +5600,11 @@ function isWallCollision(x, y) {
 }
 
 // =============================================================================
+// Initialize the game
 console.log('Script loaded successfully!');
+
+// The game will be initialized when the DOM is loaded
+// All initialization is handled in the DOMContentLoaded event listener
 </script>
 </body>
 </html>
