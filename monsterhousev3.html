@@ -724,6 +724,23 @@ function generateAssets() {
 
 // --- GAME & PLAYER STATE ---
 let player = {}, enemies = [], map = [], sprites = [];
+
+// Add debugging to track player angle changes
+let lastPlayerAngle = 0;
+Object.defineProperty(player, 'angle', {
+    get: function() { return this._angle || 0; },
+    set: function(value) {
+        const oldValue = this._angle || 0;
+        this._angle = value;
+        
+        // Log significant angle changes that aren't from mouse movement
+        if (Math.abs(value - oldValue) > 0.001 && Math.abs(value - lastPlayerAngle) > 0.001) {
+            console.log(`Player angle changed: ${oldValue.toFixed(6)} -> ${value.toFixed(6)} (diff: ${(value - oldValue).toFixed(6)})`);
+            console.trace('Angle change stack trace:');
+        }
+        lastPlayerAngle = value;
+    }
+});
 let closetInteriors = [];
 // sprites: {x,y,type,texture,opened?,contains?}
 let keys = {}, touchState = {};
@@ -2916,7 +2933,17 @@ function setupInputs() {
         });
         document.addEventListener('mousemove', e => {
             if (currentGameState === GAME_STATE.PLAYING && document.pointerLockElement === canvas) {
-                player.angle += e.movementX * ROTATION_SPEED * (settings.sens||1);
+                // Only process mouse movement if we're actually in playing state and pointer is locked
+                if (e.movementX !== 0) {
+                    const oldAngle = player.angle;
+                    const movement = e.movementX * ROTATION_SPEED * (settings.sens||1);
+                    player.angle += movement;
+                    
+                    // Debug: log rotation changes to identify issues
+                    if (Math.abs(movement) > 0.001) { // Only log significant movements
+                        console.log(`Mouse movement: movementX=${e.movementX}, rotation=${movement.toFixed(6)}, angle: ${oldAngle.toFixed(6)} -> ${player.angle.toFixed(6)}`);
+                    }
+                }
             }
         });
     }
@@ -2946,11 +2973,15 @@ function setupInputs() {
     }
 
     document.addEventListener('pointerlockchange', () => {
+        console.log(`Pointer lock changed. Element: ${document.pointerLockElement}, Canvas: ${canvas}, Game State: ${currentGameState}`);
         if (document.pointerLockElement !== canvas && currentGameState === GAME_STATE.PLAYING) {
             // Pause the game when pointer lock is lost
+            console.log("Pointer lock lost, pausing game");
             currentGameState = GAME_STATE.PAUSED;
             pauseMenu.style.display = 'block';
             // Keep HUD visible during pause
+        } else if (document.pointerLockElement === canvas && currentGameState === GAME_STATE.PLAYING) {
+            console.log("Pointer lock acquired");
         }
     });
 
@@ -3713,6 +3744,9 @@ function update() {
     // Don't update if game is completely stopped or paused
     if (![GAME_STATE.PLAYING, GAME_STATE.HIDDEN].includes(currentGameState)) return;
     
+    // Track player angle at start of update
+    const startAngle = player.angle;
+    
     // Update gamepad state
     updateGamepadState();
     
@@ -4227,6 +4261,11 @@ function update() {
                 shiftTimer.style.color = '#ffaa00';
             }
         }
+    }
+    
+    // Check if player angle changed unexpectedly during update
+    if (Math.abs(player.angle - startAngle) > 0.001) {
+        console.log(`Player angle changed during update: ${startAngle.toFixed(6)} -> ${player.angle.toFixed(6)}`);
     }
 } // End of update function
 
