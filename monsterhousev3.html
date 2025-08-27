@@ -293,6 +293,7 @@
             <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
             <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
             <div id="grace-period-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">- Enemies can't hear you</div>
+            <div id="shift-timer" style="margin-top:6px;color:#ffaa00;font-size:12px;">Next shift: --</div>
             <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Floor: <span id="hud-floor">1</span> | F: Flashlight <span id="hud-flash">Off</span> | Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch</div>
@@ -371,7 +372,9 @@ const rushWarning = document.getElementById('rush-warning');
 const hiddenIndicator = document.getElementById('hidden-indicator');
 const crouchIndicator = document.getElementById('crouch-indicator');
 const gracePeriodIndicator = document.getElementById('grace-period-indicator');
+const enemySpawnIndicator = document.getElementById('enemy-spawn-indicator');
 const pauseIndicator = document.getElementById('pause-indicator');
+const shiftTimer = document.getElementById('shift-timer');
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -1305,7 +1308,7 @@ function applyAffix() {
             currentEnemySpeed *= 0.9;
             break;
         case "Labyrinthine":
-            currentShiftInterval = Math.max(20000, SHIFT_INTERVAL - 8000);
+            currentShiftInterval = Math.max(60000, SHIFT_INTERVAL - 15000); // Only reduce by 15s max
             break;
         case "Keen Eye":
             player.keenEye = true;
@@ -1432,17 +1435,17 @@ function addDungeonObjects(floorMap, floorIndex) {
     
     // Add bones and blood stains (less gore for mansion stages)
     if (stageIndex < 4) {
-        for (let i = 0; i < 2 + Math.floor(prng() * 2); i++) {
-            let pos = findRandomEmptyCell(floorMap);
-            if (pos) {
-                floorMap[pos.y][pos.x] = 8; // Bones
-            }
+    for (let i = 0; i < 2 + Math.floor(prng() * 2); i++) {
+        let pos = findRandomEmptyCell(floorMap);
+        if (pos) {
+            floorMap[pos.y][pos.x] = 8; // Bones
         }
-        
-        for (let i = 0; i < 1 + Math.floor(prng() * 2); i++) {
-            let pos = findRandomEmptyCell(floorMap);
-            if (pos) {
-                floorMap[pos.y][pos.x] = 9; // Blood stain
+    }
+    
+    for (let i = 0; i < 1 + Math.floor(prng() * 2); i++) {
+        let pos = findRandomEmptyCell(floorMap);
+        if (pos) {
+            floorMap[pos.y][pos.x] = 9; // Blood stain
             }
         }
     }
@@ -1490,6 +1493,18 @@ function resetGame() {
     console.log("Current floor:", currentFloor);
     console.log("Stage:", stageIndex + 1, "Max floors:", maxFloors);
     
+    // Debug: check map generation
+    if (floors && floors.length > 0) {
+        const currentMap = floors[0];
+        let emptyCells = 0;
+        for (let y = 0; y < currentMap.length; y++) {
+            for (let x = 0; x < currentMap[0].length; x++) {
+                if (currentMap[y][x] === 0) emptyCells++;
+            }
+        }
+        console.log(`Map size: ${currentMap.length}x${currentMap[0].length}, Empty cells: ${emptyCells}`);
+    }
+    
     currentFloor = 0;
     map = floors[currentFloor];
     console.log("Set currentFloor to 0, map size:", map.length, "x", map[0].length);
@@ -1506,6 +1521,9 @@ function resetGame() {
     // Reset closet-related timers
     player.closetExitTime = null;
     player.closetGracePeriod = 3000; // 3 seconds of grace period
+    
+    // Reset shift interval to base value
+    currentShiftInterval = SHIFT_INTERVAL;
 
     // Scatter bronze keys and items in corridors
     for (let i = 0; i < 2 + Math.floor(prng()*2); i++) {
@@ -1675,9 +1693,12 @@ function resetGame() {
     }
     
     enemies = [];
+    // Scatter enemies around the map (ensuring they don't spawn near player)
     const count = enemiesForStage();
+    console.log(`Attempting to spawn ${count} enemies for stage ${stageIndex + 1}`);
+    
     for (let i = 0; i < count; i++) {
-        let enemySpawn = findRandomEmptyCell(map);
+        let enemySpawn = findSafeEnemySpawn(map, spawn);
         if (enemySpawn) {
             // Create different enemy types
             let enemyType = prng() < 0.3 ? 'hunter' : prng() < 0.5 ? 'ambusher' : 'patrol';
@@ -1688,15 +1709,23 @@ function resetGame() {
                 state: 'PATROL',
                 type: enemyType,
                 lastSeenPlayer: null,
+                spawnTime: Date.now(),
+                spawnGracePeriod: 5000, // 5 seconds grace period after spawn
                 hearingRange: enemyType === 'hunter' ? 8 : enemyType === 'ambusher' ? 6 : 4,
                 memory: enemyType === 'hunter' ? 10000 : enemyType === 'ambusher' ? 8000 : 5000,
                 speed: enemyType === 'hunter' ? currentEnemySpeed * 1.2 : currentEnemySpeed,
                 stealth: enemyType === 'hunter' ? 0.7 : 1.0,
                 currentFloor: currentFloor // Track which floor this enemy is on
             };
+            console.log(`Created ${enemyType} enemy on floor ${currentFloor} at (${enemy.x.toFixed(1)}, ${enemy.y.toFixed(1)})`);
             enemies.push(enemy);
+            console.log(`Spawned ${enemyType} enemy at (${enemySpawn.x}, ${enemySpawn.y})`);
+        } else {
+            console.warn(`Failed to find safe spawn position for enemy ${i + 1}`);
         }
     }
+    
+    console.log(`Total enemies spawned: ${enemies.length}`);
     
     // Reset special enemies
     stalkerEnemy = null;
@@ -1710,7 +1739,7 @@ function resetGame() {
     // Stage-specific difficulty scaling
     if (stageIndex >= 1) {
         // Increase difficulty for stages 2+
-        currentShiftInterval = Math.max(50000, SHIFT_INTERVAL - (stageIndex * 3000)); // Slower shifts
+        currentShiftInterval = Math.max(60000, SHIFT_INTERVAL - (stageIndex * 2000)); // More consistent shifts
         currentEnemySpeed = BASE_ENEMY_SPEED + (stageIndex * 0.002); // Slower enemy scaling
         currentPathUpdateInterval = Math.max(300, ENEMY_PATH_UPDATE_INTERVAL - (stageIndex * 150)); // More frequent path updates
         console.log(`Stage ${stageIndex + 1} difficulty: shift=${currentShiftInterval}ms, speed=${currentEnemySpeed}, pathUpdate=${currentPathUpdateInterval}ms`);
@@ -2243,10 +2272,10 @@ function findSafeSpawnCell() {
             const walls = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy]) => 
                 map[c.y+dy] && map[c.y+dy][c.x+dx] === 1
             ).length;
-            if (walls <= 1) cell = c;
+        if (walls <= 1) cell = c;
         }
     }
-    return cell || findRandomEmptyCell(map);
+            return cell || findRandomEmptyCell(map);
 }
 
 function isPositionWellConnected(x, y) {
@@ -2272,6 +2301,11 @@ function isPositionWellConnected(x, y) {
                 }
             }
         }
+    }
+    
+    // For stage 1, be less strict about connectivity requirements
+    if (stageIndex === 0) {
+        return accessibleNeighbors >= 1; // Only need 1 accessible neighbor for stage 1
     }
     
     // Position is well connected if it has at least 2 accessible neighbors and leads to open areas
@@ -2343,7 +2377,60 @@ function calculatePositionConnectivity(x, y, map) {
     return connectivity;
 }
 
+function findSafeEnemySpawn(map, playerSpawn) {
+    // Find enemy spawn position that's far enough from player
+    // For stage 1, use a smaller minimum distance to make spawning easier
+    const MIN_SPAWN_DISTANCE = stageIndex === 0 ? 5 : 8; // Shorter distance for stage 1
+    let attempts = 0;
+    const maxAttempts = 200;
+    
+    console.log(`Finding safe enemy spawn. Player at (${playerSpawn.x}, ${playerSpawn.y}), min distance: ${MIN_SPAWN_DISTANCE}`);
+    
+    while (attempts < maxAttempts) {
+        const spawnPos = findRandomEmptyCell(map);
+        if (!spawnPos) {
+            console.warn("No random empty cell found for enemy spawn");
+            break;
+        }
+        
+        // Calculate distance from player spawn
+        const distanceFromPlayer = Math.hypot(
+            spawnPos.x - playerSpawn.x, 
+            spawnPos.y - playerSpawn.y
+        );
+        
+        // Check if position is well connected and far enough from player
+        if (distanceFromPlayer >= MIN_SPAWN_DISTANCE && isPositionWellConnected(spawnPos.x, spawnPos.y)) {
+            console.log(`Found safe enemy spawn at (${spawnPos.x}, ${spawnPos.y}), distance: ${distanceFromPlayer.toFixed(1)}`);
+            return spawnPos;
+        }
+        
+        attempts++;
+    }
+    
+    // Fallback: find any position that's at least moderately far from player
+    console.log(`Fallback: searching for moderately distant spawn positions`);
+    for (let y = 0; y < MAP_SIZE; y++) {
+        for (let x = 0; x < MAP_SIZE; x++) {
+            if (map[y][x] === 0) {
+                const distanceFromPlayer = Math.hypot(x - playerSpawn.x, y - playerSpawn.y);
+                if (distanceFromPlayer >= MIN_SPAWN_DISTANCE * 0.7) { // Allow slightly closer as fallback
+                    console.log(`Fallback spawn found at (${x}, ${y}), distance: ${distanceFromPlayer.toFixed(1)}`);
+                    return { x, y };
+                }
+            }
+        }
+    }
+    
+    // Last resort: any empty cell
+    console.log("Last resort: using any random empty cell");
+    return findRandomEmptyCell(map);
+}
+
 function shiftMaze() {
+    console.log(`House shift triggered! Current interval: ${currentShiftInterval}ms, Stage: ${stageIndex + 1}`);
+    console.log(`Player position before shift: (${player.x.toFixed(2)}, ${player.y.toFixed(2)})`);
+    
     // Safety check: ensure map is initialized for the core shift operation
     if (!map || !Array.isArray(map) || map.length === 0) {
         console.warn("shiftMaze: map not properly initialized, skipping shift");
@@ -2351,6 +2438,7 @@ function shiftMaze() {
     }
     
     // Shift current floor with enhanced failsafe system
+    console.log("Shifting maze rows...");
     const tempRow = map.pop();
     map.unshift(tempRow);
     
@@ -2379,19 +2467,25 @@ function shiftMaze() {
     let playerRelocated = false;
     if (map && player && typeof player.x === 'number' && typeof player.y === 'number' && 
         Math.floor(player.y) >= 0 && Math.floor(player.y) < map.length && 
-        Math.floor(player.x) >= 0 && Math.floor(player.x) < map[0].length &&
-        map[Math.floor(player.y)][Math.floor(player.x)] > 0) {
-        // Player is in a wall, try to find adjacent safe tile
-        for (let [dx, dy] of [[0,1], [0,-1], [1,0], [-1,0]]) {
-             const newX = Math.floor(player.x+dx);
-             const newY = Math.floor(player.y+dy);
-             if (newY >= 0 && newY < map.length && newX >= 0 && newX < map[0].length && map[newY][newX] === 0) {
-                 player.x = newX + 0.5;
-                 player.y = newY + 0.5;
-                 playerRelocated = true;
-                 console.log("House shift: relocated player to adjacent safe tile");
-                 break;
-             }
+        Math.floor(player.x) >= 0 && Math.floor(player.x) < map[0].length) {
+        
+        // Only relocate if player is actually in a solid wall (not stairs or decorative objects)
+        const playerTile = map[Math.floor(player.y)][Math.floor(player.x)];
+        if (playerTile === 1) { // Only relocate if in a solid wall
+            console.log("House shift: player stuck in wall, relocating...");
+            
+            // Try to find adjacent safe tile
+            for (let [dx, dy] of [[0,1], [0,-1], [1,0], [-1,0]]) {
+                 const newX = Math.floor(player.x+dx);
+                 const newY = Math.floor(player.y+dy);
+                 if (newY >= 0 && newY < map.length && newX >= 0 && newX < map[0].length && map[newY][newX] === 0) {
+                     player.x = newX + 0.5;
+                     player.y = newY + 0.5;
+                     playerRelocated = true;
+                     console.log("House shift: relocated player to adjacent safe tile");
+                     break;
+                 }
+            }
         }
         
         // If no adjacent safe tile found, use more aggressive search
@@ -2427,12 +2521,18 @@ function shiftMaze() {
             message.life = 200;
         }
     }
-    message.text = "The house shifts around you!";
+    message.text = "House has shifted!";
     message.life = 150;
+    
+    // Show prominent house shift popup
+    showPopup("HOUSE HAS SHIFTED! ");
+    
     lastShiftTime = Date.now();
     
     // Play house shift sound
     playSound('houseShift', 0.8);
+    
+    console.log(`Player position after shift: (${player.x.toFixed(2)}, ${player.y.toFixed(2)})`);
 
     // Ensure enemies are not stuck in walls after shift
     if (enemies && Array.isArray(enemies)) {
@@ -2608,15 +2708,20 @@ function useNoiseMaker() {
     attractX = Math.max(1, Math.min(MAP_SIZE - 2, attractX));
     attractY = Math.max(1, Math.min(MAP_SIZE - 2, attractY));
     
-    // Make all enemies in range move toward the noise
+    // Make all enemies in range move toward the noise (but respect spawn grace period)
     for (let enemy of enemies) {
         const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
         if (dist <= noiseRadius) {
-            enemy.attractedTo = { x: attractX, y: attractY };
-            enemy.attractedUntil = Date.now() + attractDuration;
-            enemy.state = 'ATTRACTED';
-            // Clear current path and set new target
-            enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), Math.floor(attractX), Math.floor(attractY));
+            // Check if enemy is in spawn grace period
+            const inSpawnGrace = enemy.spawnTime && (Date.now() - enemy.spawnTime) < enemy.spawnGracePeriod;
+            
+            if (!inSpawnGrace) {
+                enemy.attractedTo = { x: attractX, y: attractY };
+                enemy.attractedUntil = Date.now() + attractDuration;
+                enemy.state = 'ATTRACTED';
+                // Clear current path and set new target
+                enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), Math.floor(attractX), Math.floor(attractY));
+            }
         }
     }
     
@@ -3616,7 +3721,18 @@ function update() {
     
     handleMovement();
 
-    if (Date.now() - lastShiftTime > currentShiftInterval) { shiftMaze(); }
+    // Prevent house shifts from happening too frequently (minimum 10 seconds between shifts)
+    if (Date.now() - lastShiftTime > currentShiftInterval && (Date.now() - lastShiftTime) > 10000) { 
+        console.log(`House shift triggered! Time since last shift: ${Date.now() - lastShiftTime}ms, Interval: ${currentShiftInterval}ms`);
+        console.log(`Player position: (${player.x.toFixed(2)}, ${player.y.toFixed(2)}), Angle: ${player.angle.toFixed(3)}`);
+        
+        // Only shift if the game state is stable (not during rapid player movement)
+        if (currentGameState === GAME_STATE.PLAYING) {
+            shiftMaze(); 
+        } else {
+            console.log("Skipping house shift - game state not stable");
+        }
+    }
 
     let pTileX = Math.floor(player.x), pTileY = Math.floor(player.y);
     for (let i = sprites.length - 1; i >= 0; i--) {
@@ -3792,6 +3908,10 @@ function update() {
     }
     
     // Enhanced Enemy AI for all enemies
+    if (enemies.length > 0) {
+        console.log(`Processing ${enemies.length} enemies on floor ${currentFloor}`);
+    }
+    
     for (let enemy of enemies) {
         // Only process enemies on the same floor as player
         if (enemy.currentFloor === currentFloor) {
@@ -3821,10 +3941,13 @@ function update() {
                         enemy.state = 'CHASING';
                         playSound('enemyHear', 0.6);
                         
-                        // Update path to player
+                        // Update path to player (but respect spawn grace period)
                         if (Date.now() - lastEnemyPathUpdateTime > 500) {
                             lastEnemyPathUpdateTime = Date.now();
-                            enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+                            // Only pathfind if not in spawn grace period
+                            if (!enemy.spawnTime || (Date.now() - enemy.spawnTime) >= enemy.spawnGracePeriod) {
+                                enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+                            }
                         }
                     }
                 }
@@ -3843,16 +3966,22 @@ function update() {
                 enemy.path = [];
             }
             
-            // Rush event affects regular enemies
-            if (rushEvent.active && currentGameState === GAME_STATE.PLAYING && !enemy.blinded) {
+            // Check if enemy is in spawn grace period
+            const inSpawnGrace = enemy.spawnTime && (Date.now() - enemy.spawnTime) < enemy.spawnGracePeriod;
+            
+            // Rush event affects regular enemies (but respect spawn grace period)
+            if (rushEvent.active && currentGameState === GAME_STATE.PLAYING && !enemy.blinded && !inSpawnGrace) {
                 // Enemies become more aggressive during rush
                 if (Date.now() - lastEnemyPathUpdateTime > 300) { // Faster updates
                     lastEnemyPathUpdateTime = Date.now();
                     enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
                 }
-            } else if (currentGameState === GAME_STATE.PLAYING && Date.now() - lastEnemyPathUpdateTime > currentPathUpdateInterval && !enemy.blinded) {
-                lastEnemyPathUpdateTime = Date.now();
-                enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+            } else if (currentGameState === GAME_STATE.PLAYING && Date.now() - lastEnemyPathUpdateTime > currentPathUpdateInterval && !enemy.blinded && !inSpawnGrace) {
+                // Only pathfind to player if enemy has actually seen/heard them
+                if (enemy.lastSeenPlayer && (Date.now() - enemy.lastSeenPlayer.time) < enemy.memory) {
+                    lastEnemyPathUpdateTime = Date.now();
+                    enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+                }
             } else if (currentGameState === GAME_STATE.HIDDEN && enemy.path.length > 0) {
                 enemy.path = [];
             }
@@ -4066,9 +4195,40 @@ function update() {
             }
         }
         
-
+        // Update shift timer
+        if (shiftTimer) {
+            if (currentGameState === GAME_STATE.PLAYING || currentGameState === GAME_STATE.HIDDEN) {
+                const timeUntilShift = Math.max(0, currentShiftInterval - (Date.now() - lastShiftTime));
+                const seconds = Math.ceil(timeUntilShift / 1000);
+                let affixInfo = '';
+                if (currentAffix === 'Labyrinthine') {
+                    affixInfo = ' (Labyrinthine)';
+                }
+                const currentInterval = Math.ceil(currentShiftInterval / 1000);
+                const baseInterval = Math.ceil(SHIFT_INTERVAL / 1000);
+                if (currentInterval !== baseInterval) {
+                    affixInfo += ` [${currentInterval}s]`;
+                }
+                shiftTimer.textContent = `Next shift: ${seconds}s (Stage ${stageIndex + 1})${affixInfo}`;
+                
+                // Change color based on urgency
+                if (seconds <= 10) {
+                    shiftTimer.style.color = '#ff4444'; // Red when close
+                } else if (seconds <= 30) {
+                    shiftTimer.style.color = '#ffaa00'; // Orange when medium
+                } else {
+                    shiftTimer.style.color = '#ffaa00'; // Default orange
+                }
+            } else if (currentGameState === GAME_STATE.MENU) {
+                shiftTimer.textContent = 'Next shift: --';
+                shiftTimer.style.color = '#666';
+            } else {
+                shiftTimer.textContent = 'Next shift: --';
+                shiftTimer.style.color = '#ffaa00';
+            }
+        }
     }
-}
+} // End of update function
 
 function renderHiddenSlitView(slitY, slitHeight) {
     // Render a very limited view through the closet slit
@@ -4269,7 +4429,19 @@ function render() {
         ctx.fillRect(i, drawStart, 1, lineHeight);
     }
     
-    const enemySprites = enemies.map(e => ({x: e.x, y: e.y, type: 'enemy', texture: assets.enemySprite}));
+    const enemySprites = enemies.map(e => ({
+        x: e.x, 
+        y: e.y, 
+        type: 'enemy', 
+        texture: assets.enemySprite,
+        inSpawnGrace: e.spawnTime && (Date.now() - e.spawnTime) < e.spawnGracePeriod,
+        floor: e.currentFloor
+    }));
+    
+    // Debug: log enemy floor info
+    if (enemySprites.length > 0) {
+        console.log(`Enemy floors: ${enemySprites.map(e => `Floor ${e.floor}`).join(', ')}`);
+    }
     const allSprites = [...sprites, ...enemySprites];
     allSprites.forEach(s => s.dist = Math.hypot(s.x-player.x, s.y-player.y));
     allSprites.sort((a,b) => b.dist - a.dist);
@@ -4277,6 +4449,11 @@ function render() {
     // Only log sprite count occasionally to avoid spam
     if (Math.random() < 0.01) { // Log 1% of the time
         console.log("Rendering", allSprites.length, "sprites (", sprites.length, "items +", enemySprites.length, "enemies)");
+    }
+    
+    // Debug: log enemy positions occasionally
+    if (enemySprites.length > 0 && Math.random() < 0.05) { // Log 5% of the time when enemies exist
+        console.log("Enemy positions:", enemySprites.map(e => `(${e.x.toFixed(1)}, ${e.y.toFixed(1)})`));
     }
     for(let sprite of allSprites) {
         // Only log container sprites occasionally to avoid spam
@@ -4311,8 +4488,17 @@ function render() {
                 // --- RENDERING FIX: Only draw sprite pixel if it's closer than the wall ---
                 if (stripe >= 0 && stripe < canvas.width && spriteDist < zBuffer[stripe]) {
                     let texX = Math.floor(64 * (stripe - drawStartX) / spriteWidth);
-                    ctx.globalAlpha = 1;
+                    
+                    // Special rendering for enemies in spawn grace period
+                    if (sprite.type === 'enemy' && sprite.inSpawnGrace) {
+                        ctx.globalAlpha = 0.4; // Make them semi-transparent
+                        ctx.fillStyle = 'rgba(0, 255, 0, 0.3)'; // Add green tint
+                        ctx.fillRect(stripe, drawStartY, 1, spriteHeight);
+                    }
+                    
+                    ctx.globalAlpha = sprite.inSpawnGrace ? 0.6 : 1; // Reduce opacity for grace period enemies
                     ctx.drawImage(sprite.texture, texX, 0, 1, 64, stripe, drawStartY, 1, spriteHeight);
+                    ctx.globalAlpha = 1; // Reset alpha
                 }
             }
         }
