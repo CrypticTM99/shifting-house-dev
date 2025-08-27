@@ -292,6 +292,7 @@
             <div id="exit-compass" style="margin-top:6px;color:#aaa;">Exit: ?</div>
             <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
             <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
+            <div id="grace-period-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">- Enemies can't hear you</div>
             <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Floor: <span id="hud-floor">1</span> | F: Flashlight <span id="hud-flash">Off</span> | Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch</div>
@@ -369,6 +370,7 @@ const hudNoise = document.getElementById('hud-noise');
 const rushWarning = document.getElementById('rush-warning');
 const hiddenIndicator = document.getElementById('hidden-indicator');
 const crouchIndicator = document.getElementById('crouch-indicator');
+const gracePeriodIndicator = document.getElementById('grace-period-indicator');
 const pauseIndicator = document.getElementById('pause-indicator');
 
 canvas.width = window.innerWidth;
@@ -1495,11 +1497,15 @@ function resetGame() {
     sprites = [];
     
     let spawn = findSafeSpawnCell();
-    player = { x: spawn.x + 0.5, y: spawn.y + 0.5, angle: prng() * Math.PI * 2, sanity: 100, hasBronzeKey: false, hasGoldKey: false, stamina: 1, moveSpeedMultiplier: 1, keenEye: false, graceMs: 2000, closetEntryTime: null };
+    player = { x: spawn.x + 0.5, y: spawn.y + 0.5, angle: prng() * Math.PI * 2, sanity: 100, hasBronzeKey: false, hasGoldKey: false, stamina: 1, moveSpeedMultiplier: 1, keenEye: false, graceMs: 2000, closetEntryTime: null, closetExitTime: null, closetGracePeriod: 3000 };
     
     // Reset player abilities
     playerAbilities.crouching = false;
     playerAbilities.stealthMode = false;
+    
+    // Reset closet-related timers
+    player.closetExitTime = null;
+    player.closetGracePeriod = 3000; // 3 seconds of grace period
 
     // Scatter bronze keys and items in corridors
     for (let i = 0; i < 2 + Math.floor(prng()*2); i++) {
@@ -1546,7 +1552,7 @@ function resetGame() {
     
     // If no exit exists on current floor and no stairs available, place exit here
     if (!exitExists && floorConnections.length === 0) {
-        let exitPos = findRandomEmptyCell(map);
+        let exitPos = findWellConnectedExitPosition(map);
         if (exitPos) {
             map[exitPos.y][exitPos.x] = 3; // Gold exit door
             console.log("Placed exit on current floor (no stairs) at", exitPos.x, exitPos.y);
@@ -1568,7 +1574,7 @@ function resetGame() {
         
         if (!workingStairs) {
             console.log("Stairs exist but connections are broken, placing exit on current floor");
-            let exitPos = findRandomEmptyCell(map);
+            let exitPos = findWellConnectedExitPosition(map);
             if (exitPos) {
                 map[exitPos.y][exitPos.x] = 3; // Gold exit door
                 console.log("Placed fallback exit on current floor at", exitPos.x, exitPos.y);
@@ -2230,11 +2236,111 @@ function findSafeSpawnCell() {
     while (!cell && tries++ < 400) {
         const c = findRandomEmptyCell(map);
         if (!c) break;
-        // Ensure not adjacent to many walls (open area) and will be far from later enemies
-        const walls = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy]) => map[c.y+dy] && map[c.y+dy][c.x+dx] === 1).length;
-        if (walls <= 1) cell = c;
+        
+        // Ensure spawn point has good connectivity (not cut off)
+        if (isPositionWellConnected(c.x, c.y)) {
+            // Ensure not adjacent to many walls (open area)
+            const walls = [[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy]) => 
+                map[c.y+dy] && map[c.y+dy][c.x+dx] === 1
+            ).length;
+            if (walls <= 1) cell = c;
+        }
     }
-            return cell || findRandomEmptyCell(map);
+    return cell || findRandomEmptyCell(map);
+}
+
+function isPositionWellConnected(x, y) {
+    // Check if position has good connectivity to the rest of the map
+    // Count accessible neighbors and ensure path to multiple areas
+    let accessibleNeighbors = 0;
+    let hasPathToOpenArea = false;
+    
+    // Check immediate neighbors
+    for (let [dx, dy] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+            accessibleNeighbors++;
+            
+            // Check if this neighbor leads to a more open area
+            for (let [dx2, dy2] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+                const nx2 = nx + dx2;
+                const ny2 = ny + dy2;
+                if (nx2 >= 0 && nx2 < MAP_SIZE && ny2 >= 0 && ny2 < MAP_SIZE && map[ny2][nx2] === 0) {
+                    hasPathToOpenArea = true;
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Position is well connected if it has at least 2 accessible neighbors and leads to open areas
+    return accessibleNeighbors >= 2 && hasPathToOpenArea;
+}
+
+function findWellConnectedExitPosition(map) {
+    // Find the best exit position that's well connected to the map
+    let bestPositions = [];
+    
+    // Try to find positions with excellent connectivity
+    for (let y = 0; y < MAP_SIZE; y++) {
+        for (let x = 0; x < MAP_SIZE; x++) {
+            if (map[y][x] === 0) { // Empty floor tile
+                const connectivity = calculatePositionConnectivity(x, y, map);
+                if (connectivity >= 3) { // At least 3 good connections
+                    bestPositions.push({ x, y, connectivity });
+                }
+            }
+        }
+    }
+    
+    // Sort by connectivity (highest first)
+    bestPositions.sort((a, b) => b.connectivity - a.connectivity);
+    
+    // Return the best position, or fallback to random if none found
+    if (bestPositions.length > 0) {
+        return bestPositions[0];
+    }
+    
+    // Fallback: find any position with at least 2 connections
+    for (let y = 0; y < MAP_SIZE; y++) {
+        for (let x = 0; x < MAP_SIZE; x++) {
+            if (map[y][x] === 0) {
+                const connectivity = calculatePositionConnectivity(x, y, map);
+                if (connectivity >= 2) {
+                    return { x, y };
+                }
+            }
+        }
+    }
+    
+    // Last resort: any empty cell
+    return findRandomEmptyCell(map);
+}
+
+function calculatePositionConnectivity(x, y, map) {
+    let connectivity = 0;
+    
+    // Check all 4 directions
+    for (let [dx, dy] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+            connectivity++;
+            
+            // Bonus points for positions that lead to more open areas
+            for (let [dx2, dy2] of [[1,0], [-1,0], [0,1], [0,-1]]) {
+                const nx2 = nx + dx2;
+                const ny2 = ny + dy2;
+                if (nx2 >= 0 && nx2 < MAP_SIZE && ny2 >= 0 && ny2 < MAP_SIZE && map[ny2][nx2] === 0) {
+                    connectivity += 0.5; // Bonus for extended connectivity
+                }
+            }
+        }
+    }
+    
+    return connectivity;
 }
 
 function shiftMaze() {
@@ -3702,19 +3808,24 @@ function update() {
             
             // Check if enemy can hear player footsteps
             if (currentGameState === GAME_STATE.PLAYING && !enemy.blinded) {
-                const footstepRange = enemy.hearingRange * (playerAbilities.stealthMode ? 0.5 : 1.0);
-                const canHear = distToPlayer <= footstepRange;
+                // Check if player is in grace period after leaving closet
+                const inGracePeriod = player.closetExitTime && (Date.now() - player.closetExitTime) < player.closetGracePeriod;
                 
-                if (canHear && !enemy.attractedTo) {
-                    // Enemy heard player - update last seen position
-                    enemy.lastSeenPlayer = { x: player.x, y: player.y, time: Date.now() };
-                    enemy.state = 'CHASING';
-                    playSound('enemyHear', 0.6);
+                if (!inGracePeriod) {
+                    const footstepRange = enemy.hearingRange * (playerAbilities.stealthMode ? 0.5 : 1.0);
+                    const canHear = distToPlayer <= footstepRange;
                     
-                    // Update path to player
-                    if (Date.now() - lastEnemyPathUpdateTime > 500) {
-                        lastEnemyPathUpdateTime = Date.now();
-                        enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+                    if (canHear && !enemy.attractedTo) {
+                        // Enemy heard player - update last seen position
+                        enemy.lastSeenPlayer = { x: player.x, y: player.y, time: Date.now() };
+                        enemy.state = 'CHASING';
+                        playSound('enemyHear', 0.6);
+                        
+                        // Update path to player
+                        if (Date.now() - lastEnemyPathUpdateTime > 500) {
+                            lastEnemyPathUpdateTime = Date.now();
+                            enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
+                        }
                     }
                 }
             }
@@ -3933,6 +4044,16 @@ function update() {
                 crouchIndicator.style.display = 'block';
             } else {
                 crouchIndicator.style.display = 'none';
+            }
+        }
+        
+        // Show grace period indicator
+        if (gracePeriodIndicator) {
+            const inGracePeriod = player.closetExitTime && (Date.now() - player.closetExitTime) < player.closetGracePeriod;
+            if (inGracePeriod) {
+                gracePeriodIndicator.style.display = 'block';
+            } else {
+                gracePeriodIndicator.style.display = 'none';
             }
         }
         
