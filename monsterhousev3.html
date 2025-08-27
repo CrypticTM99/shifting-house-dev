@@ -1995,7 +1995,9 @@ function resetGame() {
                 memory: enemyType === 'hunter' ? 10000 : enemyType === 'ambusher' ? 8000 : 5000,
                 speed: enemyType === 'hunter' ? currentEnemySpeed * 0.9 : currentEnemySpeed,
                 stealth: enemyType === 'hunter' ? 0.7 : 1.0,
-                currentFloor: currentFloor // Track which floor this enemy is on
+                currentFloor: currentFloor, // Track which floor this enemy is on
+                patrolTarget: null, // Initialize patrol system
+                patrolRadius: 3 + Math.random() * 2 // Random patrol radius between 3-5 tiles
             };
             console.log(`Created ${enemyType} enemy on floor ${currentFloor} at (${enemy.x.toFixed(1)}, ${enemy.y.toFixed(1)})`);
             enemies.push(enemy);
@@ -2029,6 +2031,9 @@ function resetGame() {
         currentEnemySpeed = BASE_ENEMY_SPEED;
         currentPathUpdateInterval = ENEMY_PATH_UPDATE_INTERVAL;
     }
+    
+    // Reset game state to playing
+    currentGameState = GAME_STATE.PLAYING;
     
     // Reset UI indicators
     if (hiddenIndicator) hiddenIndicator.style.display = 'none';
@@ -2221,6 +2226,9 @@ function renderPauseMenu() {
 }
 
 function startRun() {
+    // Reset game state completely
+    currentGameState = GAME_STATE.PLAYING;
+    
     stageIndex = 0;
     totalElapsedMs = 0;
     runStartTime = Date.now();
@@ -2863,9 +2871,9 @@ function shiftMaze() {
                     console.log(`House shift: relocated enemy to safe position at ${safe.x}, ${safe.y}`);
                 } else {
                     console.warn("House shift: could not find safe position for enemy, using emergency spawn");
-                    // Emergency fallback: place enemy at a known safe location
-                    e.x = 1.5;
-                    e.y = 1.5;
+                    // Emergency fallback: place enemy at a known safe location far from player
+                    e.x = MAP_SIZE - 1.5;
+                    e.y = MAP_SIZE - 1.5;
                     e.path = [];
                 }
             }
@@ -3950,122 +3958,6 @@ function hasSafeExit(closetX, closetY) {
     return false;
 }
 
-function tryToggleHide() {
-    console.log("tryToggleHide called, current state:", currentGameState);
-    
-    // If player is already hidden, handle exit
-    if (currentGameState === GAME_STATE.HIDDEN) {
-        console.log("Player is hidden, handling exit...");
-        handleClosetExit();
-        return;
-    }
-    
-    // Handle entering closet (only when in PLAYING state)
-    if (currentGameState === GAME_STATE.PLAYING) {
-        let playerTileX = Math.floor(player.x);
-        let playerTileY = Math.floor(player.y);
-        // Closet can be either under player (floor closet) or in front if closet is a wall tile
-        let facingX = Math.floor(player.x + Math.cos(player.angle) * 0.7);
-        let facingY = Math.floor(player.y + Math.sin(player.angle) * 0.7);
-        const onCloset = map[playerTileY][playerTileX] === 4;
-        const facingCloset = (facingX >=0 && facingX < MAP_SIZE && facingY >= 0 && facingY < MAP_SIZE && map[facingY][facingX] === 4);
-        console.log("Player at", playerTileX, playerTileY, "onCloset:", onCloset, "facingCloset:", facingCloset, "map tile:", map[playerTileY][playerTileX]);
-        
-        if(onCloset || facingCloset) {
-            // Check if we can actually exit before entering hidden state
-            let canExit = false;
-            for (let y = 0; y < MAP_SIZE; y++) {
-                for (let x = 0; x < MAP_SIZE; x++) {
-                    if (map[y][x] === 4) { // Found a closet
-                        // Check if there's an accessible open tile in front of it
-                        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
-                        for (let [dx, dy] of directions) {
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
-                                // Check if this position is accessible
-                                let accessible = false;
-                                const checkDirections = [[1,0], [-1,0], [0,1], [0,-1]];
-                                for (let [cdx, cdy] of checkDirections) {
-                                    const cx = nx + cdx;
-                                    const cy = ny + cdy;
-                                    if (cx >= 0 && cx < MAP_SIZE && cy >= 0 && cy < MAP_SIZE && map[cy][cx] === 0) {
-                                        accessible = true;
-                                        break;
-                                    }
-                                }
-                                if (accessible) {
-                                    canExit = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (canExit) break;
-                    }
-                }
-                if (canExit) break;
-            }
-            
-            if (!canExit) {
-                message.text = "This closet is too cramped to hide in safely."; message.life = 120;
-                return;
-            }
-            
-            // Position player to see through the closet slit
-            if (onCloset) {
-                // Player is on a closet floor tile - position them to face the opening
-                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-                let facingDirection = null;
-                for (let [dx,dy] of neighbors) {
-                    const nx = playerTileX + dx;
-                    const ny = playerTileY + dy;
-                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 1) {
-                        // Found a wall - face away from it (toward the opening)
-                        facingDirection = [-dx, -dy];
-                        break;
-                    }
-                }
-                if (facingDirection) {
-                    player.angle = Math.atan2(facingDirection[1], facingDirection[0]);
-                }
-            } else if (facingCloset) {
-                // Player is facing a closet wall - position them inside
-                const closetX = facingX;
-                const closetY = facingY;
-                // Find the opening direction
-                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-                for (let [dx,dy] of neighbors) {
-                    const nx = closetX + dx;
-                    const ny = closetY + dy;
-                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 0) {
-                        // Found the opening - face toward it
-                        player.angle = Math.atan2(dy, dx);
-                        break;
-                    }
-                }
-            }
-            
-            // Enter hidden state
-            currentGameState = GAME_STATE.HIDDEN;
-            player.closetEntryTime = Date.now();
-            player.closetExitTime = null;
-            
-            // Play closet opening sound
-            playSound('closetOpen', 0.8);
-            
-            // Show hidden indicator
-            if (hiddenIndicator) hiddenIndicator.style.display = 'block';
-            
-            message.text = "You're hidden in the closet. Press H to exit.";
-            message.life = 200;
-            
-            console.log("Successfully entered closet, new state:", currentGameState);
-        } else {
-            message.text = "No safe closet nearby to hide in."; message.life = 120;
-        }
-    }
-}
-
 function handleClosetExit() {
     console.log("handleClosetExit called");
     
@@ -4385,6 +4277,42 @@ function update() {
             message.text = "The stalker begins its hunt..."; message.life = 120;
         }
         
+        // Handle stalker behavior when player is hidden
+        if (currentGameState === GAME_STATE.HIDDEN) {
+            if (stalkerEnemy.state === 'CHASING' || inChase) {
+                // If stalker was chasing, they should search the area
+                if (!stalkerEnemy.patrolTarget || Math.hypot(stalkerEnemy.x - stalkerEnemy.patrolTarget.x, stalkerEnemy.y - stalkerEnemy.patrolTarget.y) < 0.5) {
+                    // Set new search target near last known player position
+                    const searchRadius = 6;
+                    const searchAngle = Math.random() * Math.PI * 2;
+                    const searchX = player.x + Math.cos(searchAngle) * searchRadius;
+                    const searchY = player.y + Math.sin(searchAngle) * searchRadius;
+                    
+                    // Ensure search target is within bounds and accessible
+                    const clampedX = Math.max(1, Math.min(MAP_SIZE - 2, Math.floor(searchX)));
+                    const clampedY = Math.max(1, Math.min(MAP_SIZE - 2, Math.floor(searchY)));
+                    
+                    if (map[clampedY][clampedX] === 0) {
+                        stalkerEnemy.patrolTarget = { x: clampedX + 0.5, y: clampedY + 0.5 };
+                        stalkerEnemy.path = findPath(Math.floor(stalkerEnemy.x), Math.floor(stalkerEnemy.y), clampedX, clampedY);
+                        stalkerEnemy.state = 'SEARCHING';
+                    }
+                }
+            } else {
+                // Normal patrol behavior when not chasing
+                if (!stalkerEnemy.patrolTarget || Math.hypot(stalkerEnemy.x - stalkerEnemy.patrolTarget.x, stalkerEnemy.y - stalkerEnemy.patrolTarget.y) < 0.5) {
+                    // Set new random patrol target
+                    const patrolX = 1 + Math.random() * (MAP_SIZE - 2);
+                    const patrolY = 1 + Math.random() * (MAP_SIZE - 2);
+                    
+                    if (map[patrolY][patrolX] === 0) {
+                        stalkerEnemy.patrolTarget = { x: patrolX + 0.5, y: patrolY + 0.5 };
+                        stalkerEnemy.path = findPath(Math.floor(stalkerEnemy.x), Math.floor(stalkerEnemy.y), patrolX, patrolY);
+                    }
+                }
+            }
+        }
+        
         // Move stalker
         if (stalkerEnemy.path && stalkerEnemy.path.length > 0) {
             let target = stalkerEnemy.path[0];
@@ -4507,8 +4435,41 @@ function update() {
                     lastEnemyPathUpdateTime = Date.now();
                     enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), pTileX, pTileY);
                 }
-            } else if (currentGameState === GAME_STATE.HIDDEN && enemy.path.length > 0) {
-                enemy.path = [];
+            } else if (currentGameState === GAME_STATE.HIDDEN) {
+                // Player is hidden - enemies should continue patrolling
+                if (enemy.state === 'CHASING') {
+                    // If enemy was chasing, they should continue searching the area
+                    if (!enemy.patrolTarget || Math.hypot(enemy.x - enemy.patrolTarget.x, enemy.y - enemy.patrolTarget.y) < 0.5) {
+                        // Set new patrol target near last seen position
+                        const lastSeen = enemy.lastSeenPlayer || { x: player.x, y: player.y };
+                        const patrolRadius = 4;
+                        const patrolAngle = Math.random() * Math.PI * 2;
+                        const patrolX = lastSeen.x + Math.cos(patrolAngle) * patrolRadius;
+                        const patrolY = lastSeen.y + Math.sin(patrolAngle) * patrolRadius;
+                        
+                        // Ensure patrol target is within bounds and accessible
+                        const clampedX = Math.max(1, Math.min(MAP_SIZE - 2, Math.floor(patrolX)));
+                        const clampedY = Math.max(1, Math.min(MAP_SIZE - 2, Math.floor(patrolY)));
+                        
+                        if (map[clampedY][clampedX] === 0) {
+                            enemy.patrolTarget = { x: clampedX + 0.5, y: clampedY + 0.5 };
+                            enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), clampedX, clampedY);
+                            enemy.state = 'PATROLLING';
+                        }
+                    }
+                } else if (enemy.state === 'PATROL' || enemy.state === 'PATROLLING') {
+                    // Continue existing patrol or start new one
+                    if (!enemy.patrolTarget || Math.hypot(enemy.x - enemy.patrolTarget.x, enemy.y - enemy.patrolTarget.y) < 0.5) {
+                        // Set new random patrol target
+                        const patrolX = 1 + Math.random() * (MAP_SIZE - 2);
+                        const patrolY = 1 + Math.random() * (MAP_SIZE - 2);
+                        
+                        if (map[patrolY][patrolX] === 0) {
+                            enemy.patrolTarget = { x: patrolX + 0.5, y: patrolY + 0.5 };
+                            enemy.path = findPath(Math.floor(enemy.x), Math.floor(enemy.y), patrolX, patrolY);
+                        }
+                    }
+                }
             }
             // Enemy movement (only for enemies on same floor)
             if (enemy.path && enemy.path.length > 0) {
@@ -4762,15 +4723,15 @@ function update() {
 } // End of update function
 
 function renderHiddenSlitView(slitY, slitHeight) {
-    // Render a very limited view through the closet slit
-    // Only show walls and enemies that are directly in front of the player
+    // Render an enhanced view through the closet slit
+    // Show walls, enemies, and corridors for better visibility
     
     const centerX = canvas.width / 2;
     const centerY = slitY + slitHeight / 2;
     
-    // Render walls through the slit (very limited raycasting)
-    for (let i = 0; i < canvas.width; i += 4) { // Skip pixels for performance
-        const rayAngle = (player.angle - FOV / 4) + (i / canvas.width) * (FOV / 2);
+    // Render walls through the slit with extended range for corridor visibility
+    for (let i = 0; i < canvas.width; i += 3) { // Reduced pixel skip for better detail
+        const rayAngle = (player.angle - FOV / 3) + (i / canvas.width) * (FOV / 1.5); // Wider FOV for slit
         const rayDirX = Math.cos(rayAngle), rayDirY = Math.sin(rayAngle);
         let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
         let deltaDistX = Math.abs(1 / (rayDirX === 0 ? 1e-6 : rayDirX)), deltaDistY = Math.abs(1 / (rayDirY === 0 ? 1e-6 : rayDirY));
@@ -4784,7 +4745,7 @@ function renderHiddenSlitView(slitY, slitHeight) {
         
         let hit = 0;
         let steps = 0;
-        while (hit === 0 && steps++ < 8) { // Limited range for slit view
+        while (hit === 0 && steps++ < 12) { // Increased range for better corridor visibility
             if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; } 
             else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
             if (mapY < 0 || mapY >= MAP_SIZE || mapX < 0 || mapX >= MAP_SIZE) { hit = 1; break; }
@@ -4793,64 +4754,88 @@ function renderHiddenSlitView(slitY, slitHeight) {
         
         if (hit > 0) {
             let perpWallDist = (side === 0) ? (mapX - player.x + (1 - stepX) / 2) / rayDirX : (mapY - player.y + (1 - stepY) / 2) / rayDirY;
-            const lineHeight = (slitHeight / Math.max(perpWallDist, 0.0001)) * 0.5;
+            const lineHeight = (slitHeight / Math.max(perpWallDist, 0.0001)) * 0.6; // Slightly taller walls
             const drawStart = centerY - lineHeight / 2;
             const drawEnd = centerY + lineHeight / 2;
             
             if (drawStart < drawEnd) {
-                ctx.fillStyle = hit === 1 ? '#333' : hit === 2 ? '#654321' : hit === 3 ? '#8B4513' : '#555';
-                ctx.fillRect(i, drawStart, 4, drawEnd - drawStart);
+                // Enhanced wall colors for better visibility
+                let wallColor;
+                switch(hit) {
+                    case 1: wallColor = '#444'; break; // Regular walls
+                    case 2: wallColor = '#8B4513'; break; // Bronze doors
+                    case 3: wallColor = '#FFD700'; break; // Gold doors
+                    case 4: wallColor = '#654321'; break; // Closets
+                    default: wallColor = '#555'; break;
+                }
+                ctx.fillStyle = wallColor;
+                ctx.fillRect(i, drawStart, 3, drawEnd - drawStart);
             }
         }
     }
     
-    // Render enemies through the slit (only if very close)
+    // Render enemies through the slit with extended range for corridor visibility
     for (let enemy of enemies) {
+        // Only show enemies on the same floor
+        if (enemy.currentFloor !== currentFloor) continue;
+        
         const enemyX = enemy.x - player.x;
         const enemyY = enemy.y - player.y;
         const enemyDist = Math.hypot(enemyX, enemyY);
-        if (enemyDist < 3) { // Only show very close enemies
+        if (enemyDist < 6) { // Increased range from 3 to 6 for corridor visibility
             const enemyAngle = Math.atan2(enemyY, enemyX) - player.angle;
-            if (Math.abs(enemyAngle) <= FOV / 4) {
+            if (Math.abs(enemyAngle) <= FOV / 2) { // Wider angle for better visibility
                 const enemyScreenX = Math.tan(enemyAngle) * canvas.width / 2;
-                const enemyHeight = (slitHeight / enemyDist) * 0.6;
+                const enemyHeight = (slitHeight / enemyDist) * 0.7;
                 const enemyWidth = enemyHeight * 0.8;
                 
                 const enemyDrawX = centerX + enemyScreenX - enemyWidth / 2;
                 const enemyDrawY = centerY - enemyHeight / 2;
                 
                 if (enemyDrawX >= 0 && enemyDrawX < canvas.width) {
-                    ctx.globalAlpha = 0.8;
+                    // Add subtle glow effect for enemies
+                    ctx.shadowColor = 'rgba(255, 0, 0, 0.3)';
+                    ctx.shadowBlur = 4;
+                    ctx.globalAlpha = 0.9;
                     ctx.drawImage(assets.enemySprite, enemyDrawX, enemyDrawY, enemyWidth, enemyHeight);
                     ctx.globalAlpha = 1.0;
+                    ctx.shadowBlur = 0;
                 }
             }
         }
     }
     
-    // Render stalker if present
-    if (stalkerEnemy) {
-        const stalkerX = stalkerEnemy.x - player.x;
-        const stalkerY = stalkerEnemy.y - player.y;
-        const stalkerDist = Math.hypot(stalkerX, stalkerY);
-        if (stalkerDist < 3) {
-            const stalkerAngle = Math.atan2(stalkerY, stalkerX) - player.angle;
-            if (Math.abs(stalkerAngle) <= FOV / 4) {
-                const stalkerScreenX = Math.tan(stalkerAngle) * canvas.width / 2;
-                const stalkerHeight = (slitHeight / stalkerDist) * 0.6;
-                const stalkerWidth = stalkerHeight * 0.8;
+    // Render stalker if present (same floor only)
+    if (stalkerEnemy && stalkerEnemy.currentFloor === currentFloor) {
+        const enemyX = stalkerEnemy.x - player.x;
+        const enemyY = stalkerEnemy.y - player.y;
+        const enemyDist = Math.hypot(enemyX, enemyY);
+        if (enemyDist < 8) { // Even longer range for stalker
+            const enemyAngle = Math.atan2(enemyY, enemyX) - player.angle;
+            if (Math.abs(enemyAngle) <= FOV / 2) {
+                const enemyScreenX = Math.tan(enemyAngle) * canvas.width / 2;
+                const enemyHeight = (slitHeight / enemyDist) * 0.8;
+                const enemyWidth = enemyHeight * 0.8;
                 
-                const stalkerDrawX = centerX + stalkerScreenX - stalkerWidth / 2;
-                const stalkerDrawY = centerY - stalkerHeight / 2;
+                const enemyDrawX = centerX + enemyScreenX - enemyWidth / 2;
+                const enemyDrawY = centerY - enemyHeight / 2;
                 
-                if (stalkerDrawX >= 0 && stalkerDrawX < canvas.width) {
-                    ctx.globalAlpha = 0.6;
-                    ctx.drawImage(assets.enemySprite, stalkerDrawX, stalkerDrawY, stalkerWidth, stalkerHeight);
+                if (enemyDrawX >= 0 && enemyDrawX < canvas.width) {
+                    // Special effect for stalker
+                    ctx.shadowColor = 'rgba(255, 0, 0, 0.5)';
+                    ctx.shadowBlur = 6;
+                    ctx.globalAlpha = 0.7;
+                    ctx.drawImage(assets.enemySprite, enemyDrawX, enemyDrawY, enemyWidth, enemyHeight);
                     ctx.globalAlpha = 1.0;
+                    ctx.shadowBlur = 0;
                 }
             }
         }
     }
+    
+    // Add subtle ambient lighting to show corridor structure
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
+    ctx.fillRect(0, slitY, canvas.width, slitHeight);
 }
 
 // =============================================================================
@@ -4861,6 +4846,13 @@ function render() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (currentGameState === GAME_STATE.WON || currentGameState === GAME_STATE.GAMEOVER) {
+        // Clear any closet state when showing end game screen
+        if (player && player.closetEntryTime) {
+            player.closetEntryTime = null;
+            player.closetExitTime = null;
+        }
+        if (hiddenIndicator) hiddenIndicator.style.display = 'none';
+        
         mainMenu.style.opacity = '1';
         mainMenu.style.pointerEvents = 'auto';
         mainMenu.querySelector('h1').textContent = (currentGameState === GAME_STATE.WON) ? "YOU ESCAPED" : "YOU WERE CAUGHT";
@@ -4875,13 +4867,20 @@ function render() {
     // Keep rendering during pause to maintain HUD visibility
     // Note: Game state is PAUSED during pause, but rendering continues
     
-    if (currentGameState === GAME_STATE.HIDDEN) {
+    // Safety check: ensure closet state is properly cleared when not hidden
+    if (currentGameState !== GAME_STATE.HIDDEN && player && player.closetEntryTime) {
+        player.closetEntryTime = null;
+        player.closetExitTime = null;
+        if (hiddenIndicator) hiddenIndicator.style.display = 'none';
+    }
+    
+    if (currentGameState === GAME_STATE.HIDDEN && player && player.closetEntryTime) {
         // Horizontal slit view through closet door
         ctx.fillStyle = "rgba(0,0,0,0.95)";
         ctx.fillRect(0,0, canvas.width, canvas.height);
         
         // Create a horizontal slit in the center of the screen
-        const slitHeight = Math.max(20, canvas.height * 0.08); // Wider slit for better visibility
+        const slitHeight = Math.max(30, canvas.height * 0.12); // Even wider slit for better visibility
         const slitY = canvas.height/2 - slitHeight/2;
         
         // Clear the slit area to show the world
@@ -4894,6 +4893,32 @@ function render() {
         
         // Render a very limited view of the world through the slit
         renderHiddenSlitView(slitY, slitHeight);
+        
+        // Show enemy detection message if enemies are visible through the slit
+        let enemiesVisible = 0;
+        for (let enemy of enemies) {
+            if (enemy.currentFloor === currentFloor) {
+                const enemyDist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                if (enemyDist < 6) {
+                    enemiesVisible++;
+                }
+            }
+        }
+        
+        if (stalkerEnemy && stalkerEnemy.currentFloor === currentFloor) {
+            const stalkerDist = Math.hypot(stalkerEnemy.x - player.x, stalkerEnemy.y - player.y);
+            if (stalkerDist < 8) {
+                enemiesVisible++;
+            }
+        }
+        
+        if (enemiesVisible > 0) {
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.font = '14px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText(`⚠️ ${enemiesVisible} enemy${enemiesVisible > 1 ? 'ies' : ''} visible through slit`, canvas.width / 2, slitY - 10);
+        }
+        
         return;
     }
     
