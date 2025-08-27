@@ -389,7 +389,7 @@ const COLLISION_PADDING = 0.18; // How far to stay from walls
 const MAX_RAY_STEPS = MAP_SIZE * MAP_SIZE;
 
 // --- STAGES & RUN ---
-const STAGES = ["Second stage", "Third stage", "Bloody stage", "Fourth stage"]; // After clearing stage 1
+const STAGES = ["Second stage", "Third stage", "Bloody stage", "Fourth stage", "Mansion stage"]; // After clearing stage 1
 let stageIndex = 0; // 0 => first stage
 let runStartTime = 0;
 let stageStartTime = 0;
@@ -1415,31 +1415,35 @@ function generateMultiFloorMaze() {
 }
 
 function addDungeonObjects(floorMap, floorIndex) {
-    // Add torches for lighting
-    for (let i = 0; i < 3 + Math.floor(prng() * 3); i++) {
+    // Add torches for lighting (more elegant placement for mansion stages)
+    const torchCount = stageIndex >= 4 ? 4 + Math.floor(prng() * 3) : 3 + Math.floor(prng() * 3);
+    for (let i = 0; i < torchCount; i++) {
         let pos = findRandomEmptyCell(floorMap);
         if (pos) {
             floorMap[pos.y][pos.x] = 7; // Torch
         }
     }
     
-    // Add bones and blood stains
-    for (let i = 0; i < 2 + Math.floor(prng() * 2); i++) {
-        let pos = findRandomEmptyCell(floorMap);
-        if (pos) {
-            floorMap[pos.y][pos.x] = 8; // Bones
+    // Add bones and blood stains (less gore for mansion stages)
+    if (stageIndex < 4) {
+        for (let i = 0; i < 2 + Math.floor(prng() * 2); i++) {
+            let pos = findRandomEmptyCell(floorMap);
+            if (pos) {
+                floorMap[pos.y][pos.x] = 8; // Bones
+            }
+        }
+        
+        for (let i = 0; i < 1 + Math.floor(prng() * 2); i++) {
+            let pos = findRandomEmptyCell(floorMap);
+            if (pos) {
+                floorMap[pos.y][pos.x] = 9; // Blood stain
+            }
         }
     }
     
-    for (let i = 0; i < 1 + Math.floor(prng() * 2); i++) {
-        let pos = findRandomEmptyCell(floorMap);
-        if (pos) {
-            floorMap[pos.y][pos.x] = 9; // Blood stain
-        }
-    }
-    
-    // Add cobwebs in corners
-    for (let i = 0; i < 2 + Math.floor(prng() * 2); i++) {
+    // Add cobwebs in corners (more elegant for mansion stages)
+    const cobwebCount = stageIndex >= 4 ? 1 + Math.floor(prng() * 2) : 2 + Math.floor(prng() * 2);
+    for (let i = 0; i < cobwebCount; i++) {
         let pos = findRandomEmptyCell(floorMap);
         if (pos) {
             floorMap[pos.y][pos.x] = 10; // Cobweb
@@ -1729,6 +1733,13 @@ function nextStageOrWin() {
     totalElapsedMs += Date.now() - stageStartTime;
     resetGame();
     showPopup(stageIndex === 0 ? "First stage" : STAGES[stageIndex - 1]);
+    
+    // Show mansion transition message for stage 5
+    if (stageIndex === 4) {
+        setTimeout(() => {
+            showPopup("The house transforms into an elegant mansion...");
+        }, 2000);
+    }
 }
 
 function showRunSummary(won) {
@@ -2551,7 +2562,8 @@ function setupInputs() {
                     joyThumb.style.transform = `translate(${clampedDist * dx/dist}px, ${clampedDist * dy/dist}px)`;
                 }
                 if(touchState.look && touch.identifier === touchState.look.id){
-                    player.angle += (touch.clientX - touchState.look.lastX) * ROTATION_SPEED * 2.5;
+                    // Fixed inverted look controls
+                    player.angle -= (touch.clientX - touchState.look.lastX) * ROTATION_SPEED * 2.5;
                     touchState.look.lastX = touch.clientX;
                 }
             }
@@ -3391,23 +3403,24 @@ function handleMovement() {
         const stickX = gamepadState.leftStick.x;
         const stickY = gamepadState.leftStick.y;
         
-        // Forward/backward movement
+        // Forward/backward movement (fixed inverted Y)
         if (stickY !== 0) {
-            dx += Math.cos(player.angle) * stickY;
-            dy += Math.sin(player.angle) * stickY;
+            dx += Math.cos(player.angle) * -stickY;
+            dy += Math.sin(player.angle) * -stickY;
         }
         
-        // Strafe movement
+        // Strafe movement (fixed inverted X)
         if (stickX !== 0) {
-            dx += Math.cos(player.angle + Math.PI/2) * stickX;
-            dy += Math.sin(player.angle + Math.PI/2) * stickX;
+            dx += Math.cos(player.angle + Math.PI/2) * -stickX;
+            dy += Math.sin(player.angle + Math.PI/2) * -stickX;
         }
     }
     
     // Right stick for looking
     if (gamepad && (gamepadState.rightStick.x !== 0 || gamepadState.rightStick.y !== 0)) {
         const lookSensitivity = 0.03;
-        player.angle += gamepadState.rightStick.x * lookSensitivity;
+        // Fixed inverted gamepad look controls
+        player.angle -= gamepadState.rightStick.x * lookSensitivity;
     }
     
     // Mobile input
@@ -3417,8 +3430,9 @@ function handleMovement() {
         let angle = Math.atan2(moveY, moveX);
         let dist = Math.min(Math.sqrt(moveX*moveX + moveY*moveY) / 60, 1);
         
-        let forward = -Math.sin(angle - player.angle - Math.PI/2) * dist;
-        let strafe = Math.cos(angle - player.angle - Math.PI/2) * dist;
+        // Fixed inverted movement controls
+        let forward = Math.sin(angle - player.angle - Math.PI/2) * dist;
+        let strafe = -Math.cos(angle - player.angle - Math.PI/2) * dist;
 
         dx += Math.cos(player.angle) * forward + Math.cos(player.angle + Math.PI/2) * strafe;
         dy += Math.sin(player.angle) * forward + Math.sin(player.angle + Math.PI/2) * strafe;
@@ -3876,6 +3890,13 @@ function update() {
             ctx.fillText(`Stage ${stageIndex + 1}: ${STAGES[stageIndex - 1]}`, 220, 200);
             ctx.fillText(`Floors: ${currentFloor + 1}/${maxFloors}`, 220, 220);
             ctx.fillText(`Stairs: ${floorConnections.length} connections`, 220, 240);
+            
+            // Show mansion indicator for stage 5+
+            if (stageIndex >= 4) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.9)';
+                ctx.fillText(`You ent`, 220, 260);
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.8)'; // Reset color
+            }
         }
         
         // Show hidden state reminder
@@ -4087,7 +4108,14 @@ function render() {
             case 10: texture = assets.cobwebTexture; break;
             case 11: texture = assets.altarTexture; break;
             case 12: texture = assets.cageTexture; break;
-            default: texture = assets.wallTexture;
+            default: 
+                // Use mansion wall texture for stages 5+
+                if (stageIndex >= 4 && assets.mansionWallTexture) {
+                    texture = assets.mansionWallTexture;
+                } else {
+                    texture = assets.wallTexture;
+                }
+                break;
         }
 
         ctx.drawImage(texture, texX, 0, 1, 64, i, drawStart, 1, lineHeight);
