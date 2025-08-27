@@ -280,6 +280,7 @@
                 <div class="action-button" id="interact-button">Interact</div>
                 <div class="action-button" id="door-button">Door</div>
                 <div class="action-button" id="flashlight-button">Light</div>
+                <div class="action-button" id="crouch-button">Crouch</div>
             </div>
         </div>
         <div id="hud" style="display:none">
@@ -379,10 +380,10 @@ let currentGameState = GAME_STATE.MENU;
 
 // --- CONSTANTS & SETTINGS ---
 const MAP_SIZE = 21;
-const MOVE_SPEED = 0.045;
+const MOVE_SPEED = 0.055;
 const ROTATION_SPEED = 0.002;
-const BASE_ENEMY_SPEED = 0.036;
-const SHIFT_INTERVAL = 45000;
+const BASE_ENEMY_SPEED = 0.045;
+const SHIFT_INTERVAL = 75000;
 const ENEMY_PATH_UPDATE_INTERVAL = 1000;
 const FOV = Math.PI / 3;
 const COLLISION_PADDING = 0.18; // How far to stay from walls
@@ -1252,10 +1253,13 @@ function updateAudio() {
             // Play surface change sound
             const footstepSound = surfaceType === 'wood' ? 'footstepsWood' : 
                                 surfaceType === 'carpet' ? 'footstepsCarpet' : 'footstepsStone';
-            playSound(footstepSound, 0.3);
+            const footstepVolume = playerAbilities.stealthMode ? 0.15 : 0.3;
+            playSound(footstepSound, footstepVolume);
         }
         
-        audioNodes.footsteps.gain.setValueAtTime(0.2, audioContext.currentTime);
+        // Reduce footstep volume when crouching/stealth mode
+        const footstepVolume = playerAbilities.stealthMode ? 0.1 : 0.2;
+        audioNodes.footsteps.gain.setValueAtTime(footstepVolume, audioContext.currentTime);
     } else {
         audioNodes.footsteps.gain.setValueAtTime(0.0, audioContext.currentTime);
     }
@@ -1287,13 +1291,13 @@ function pickAffix() {
 function applyAffix() {
     // Reset to defaults first
     currentShiftInterval = SHIFT_INTERVAL;
-    currentEnemySpeed = BASE_ENEMY_SPEED + stageIndex * 0.004;
+    currentEnemySpeed = BASE_ENEMY_SPEED + stageIndex * 0.001;
     currentPathUpdateInterval = Math.max(400, ENEMY_PATH_UPDATE_INTERVAL - stageIndex * 100);
     player.moveSpeedMultiplier = 1;
     player.keenEye = false;
     switch(currentAffix) {
         case "Fleet Footed":
-            player.moveSpeedMultiplier = 1.15;
+            player.moveSpeedMultiplier = 1.08;
             break;
         case "Calm Predator":
             currentEnemySpeed *= 0.9;
@@ -1492,6 +1496,10 @@ function resetGame() {
     
     let spawn = findSafeSpawnCell();
     player = { x: spawn.x + 0.5, y: spawn.y + 0.5, angle: prng() * Math.PI * 2, sanity: 100, hasBronzeKey: false, hasGoldKey: false, stamina: 1, moveSpeedMultiplier: 1, keenEye: false, graceMs: 2000, closetEntryTime: null };
+    
+    // Reset player abilities
+    playerAbilities.crouching = false;
+    playerAbilities.stealthMode = false;
 
     // Scatter bronze keys and items in corridors
     for (let i = 0; i < 2 + Math.floor(prng()*2); i++) {
@@ -1696,8 +1704,8 @@ function resetGame() {
     // Stage-specific difficulty scaling
     if (stageIndex >= 1) {
         // Increase difficulty for stages 2+
-        currentShiftInterval = Math.max(30000, SHIFT_INTERVAL - (stageIndex * 5000)); // Faster shifts
-        currentEnemySpeed = BASE_ENEMY_SPEED + (stageIndex * 0.008); // Faster enemies
+        currentShiftInterval = Math.max(50000, SHIFT_INTERVAL - (stageIndex * 3000)); // Slower shifts
+        currentEnemySpeed = BASE_ENEMY_SPEED + (stageIndex * 0.002); // Slower enemy scaling
         currentPathUpdateInterval = Math.max(300, ENEMY_PATH_UPDATE_INTERVAL - (stageIndex * 150)); // More frequent path updates
         console.log(`Stage ${stageIndex + 1} difficulty: shift=${currentShiftInterval}ms, speed=${currentEnemySpeed}, pathUpdate=${currentPathUpdateInterval}ms`);
     } else {
@@ -2602,6 +2610,15 @@ function setupInputs() {
                 if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off';
             }
         });
+        
+        document.getElementById('crouch-button').addEventListener('touchstart', e => {
+            e.preventDefault();
+            if (currentGameState === GAME_STATE.PAUSED) return;
+            playerAbilities.crouching = !playerAbilities.crouching;
+            playerAbilities.stealthMode = playerAbilities.crouching;
+            message.text = playerAbilities.crouching ? 'Crouching - Stealth mode active' : 'Standing - Normal mode';
+            message.life = 120;
+        });
     } else {
         document.addEventListener('keydown', e => {
             // Block input if game is paused
@@ -2901,7 +2918,8 @@ function useStairs(direction) {
                     player.y = safePosition.y;
                     message.text = `You climb to floor ${currentFloor + 1}.`;
                     message.life = 150;
-                    playSound('footsteps', 0.6);
+                    const stairVolume = playerAbilities.stealthMode ? 0.3 : 0.6;
+                    playSound('footsteps', stairVolume);
                     
                     // Update HUD floor display
                     if (hudFloorEl) hudFloorEl.textContent = `${currentFloor + 1}`;
@@ -2984,7 +3002,8 @@ function useStairs(direction) {
                     player.y = safePosition.y;
                     message.text = `You descend to floor ${currentFloor + 1}.`;
                     message.life = 150;
-                    playSound('footsteps', 0.6);
+                    const stairVolume = playerAbilities.stealthMode ? 0.3 : 0.6;
+                    playSound('footsteps', stairVolume);
                     
                     // Update HUD floor display
                     if (hudFloorEl) hudFloorEl.textContent = `${currentFloor + 1}`;
@@ -3256,6 +3275,10 @@ function tryToggleHide() {
             message.text = "You are hidden in the closet. Press H to exit."; message.life = 200;
             if (hiddenIndicator) hiddenIndicator.style.display = 'block';
             
+            // Reset crouching when entering hiding mode
+            playerAbilities.crouching = false;
+            playerAbilities.stealthMode = false;
+            
             // Play closet opening sound
             playSound('closetOpen', 0.8);
             
@@ -3442,9 +3465,9 @@ function handleMovement() {
     if(mag > 0) {
         // Sprint mechanics
         const sprinting = !!keys['shift'] && player.stamina > 0.1;
-        const vitBoost = (inventory.vitActiveUntil||0) > Date.now() ? 1.35 : 1;
-        const crouchModifier = playerAbilities.crouching ? 0.6 : 1; // Crouching makes you slower but quieter
-        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.5 : 1) * vitBoost * crouchModifier;
+        const vitBoost = (inventory.vitActiveUntil||0) > Date.now() ? 1.2 : 1;
+        const crouchModifier = playerAbilities.crouching ? 0.7 : 1; // Crouching makes you slower but quieter
+        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.3 : 1) * vitBoost * crouchModifier;
         dx = dx/mag * MOVE_SPEED * speedMul;
         dy = dy/mag * MOVE_SPEED * speedMul;
         // Stamina update
