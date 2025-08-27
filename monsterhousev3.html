@@ -2822,19 +2822,19 @@ function shiftMaze() {
             let ey = Math.floor(e.y);
             if (ey < 0 || ey >= MAP_SIZE || ex < 0 || ex >= MAP_SIZE || 
                 !map || ey >= map.length || ex >= map[0].length || map[ey][ex] > 0) {
-                // Relocate to a safe random cell not adjacent to player
+                // Relocate to a safe random cell FAR from player (minimum 8 tiles distance)
                 let safe = null; let tries = 0;
-                while (!safe && tries++ < 200) {
+                while (!safe && tries++ < 300) {
                     const cell = findRandomEmptyCell(map);
                     if (!cell) break;
                     const dist = Math.hypot(cell.x + 0.5 - player.x, cell.y + 0.5 - player.y);
-                    if (dist > 3) safe = cell;
+                    if (dist > 8) safe = cell; // Increased minimum distance from 3 to 8
                 }
                 
                 // If findRandomEmptyCell failed, try a more aggressive search
                 if (!safe) {
                     console.log("House shift: findRandomEmptyCell failed for enemy, trying manual search");
-                    for (let radius = 1; radius <= 5; radius++) {
+                    for (let radius = 1; radius <= 8; radius++) { // Increased search radius
                         for (let dx = -radius; dx <= radius; dx++) {
                             for (let dy = -radius; dy <= radius; dy++) {
                                 if (Math.abs(dx) + Math.abs(dy) === radius) { // Diamond pattern
@@ -2843,7 +2843,7 @@ function shiftMaze() {
                                     if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && 
                                         ny < map.length && nx < map[0].length && map[ny][nx] === 0) {
                                         const dist = Math.hypot(nx + 0.5 - player.x, ny + 0.5 - player.y);
-                                        if (dist > 3) {
+                                        if (dist > 6) { // Increased minimum distance from 3 to 6
                                             safe = { x: nx, y: ny };
                                             break;
                                         }
