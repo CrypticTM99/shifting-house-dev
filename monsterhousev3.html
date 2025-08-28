@@ -289,6 +289,7 @@
             <div>Bronze: <span id="hud-bronze">0</span> | Gold: <span id="hud-gold">No</span></div>
             <div class="affix">Affix: <span id="hud-affix">None</span></div>
             <div class="bar"><div id="stamina-fill" style="width:100%"></div></div>
+            <div class="bar" style="margin-top:4px;"><div id="sanity-fill" style="width:100%;background:#8B0000;"></div></div>
             <div id="exit-compass" style="margin-top:6px;color:#aaa;">Exit: ?</div>
             <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
             <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
@@ -298,8 +299,10 @@
             <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
             <div id="dpi-info" style="margin-top:6px;color:#aaa;font-size:12px;display:none;">Mouse: Detecting DPI...</div>
             <div style="margin-top:6px;color:#aaa;font-size:12px;">Floor: <span id="hud-floor">1</span> | F: Flashlight <span id="hud-flash">Off</span> | Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
-            <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch</div>
+            <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch | Sanity: <span id="hud-sanity">100</span></div>
             <div id="rush-warning" style="margin-top:6px;color:#ff4444;font-size:14px;font-weight:bold;display:none;">⚠️ RUSH! HIDE NOW!</div>
+            <div id="panic-button-indicator" style="margin-top:6px;color:#ff0000;font-size:14px;font-weight:bold;display:none;">🚨 PRESS P FOR PANIC MODE!</div>
+        </div>
         </div>
         <div id="popup"></div>
         <div id="pause-menu">
@@ -348,6 +351,7 @@ const hudBronzeEl = document.getElementById('hud-bronze');
 const hudGoldEl = document.getElementById('hud-gold');
 const hudAffixEl = document.getElementById('hud-affix');
 const staminaFill = document.getElementById('stamina-fill');
+const sanityFill = document.getElementById('sanity-fill');
 const popupEl = document.getElementById('popup');
 const leaderboardList = document.getElementById('leaderboard-list');
 const seedInput = document.getElementById('seed-input');
@@ -373,7 +377,9 @@ const hudVits = document.getElementById('hud-vits');
 const hudPicks = document.getElementById('hud-picks');
 const hudSmoke = document.getElementById('hud-smoke');
 const hudNoise = document.getElementById('hud-noise');
+const hudSanity = document.getElementById('hud-sanity');
 const rushWarning = document.getElementById('rush-warning');
+const panicButtonIndicator = document.getElementById('panic-button-indicator');
 const hiddenIndicator = document.getElementById('hidden-indicator');
 const crouchIndicator = document.getElementById('crouch-indicator');
 const gracePeriodIndicator = document.getElementById('grace-period-indicator');
@@ -893,6 +899,215 @@ audioCues.enabled = settings.audioCues;
 let inventory = { flashlight: false, vitamins: 0, lockpick: 0, vitActiveUntil: 0, smokeBomb: 0, noiseMaker: 0 };
 let rushEvent = { active: false, startTime: 0, duration: 8000, cooldown: 30000, lastTrigger: 0 };
 let stalkerEnemy = null;
+
+// Sanity system
+let sanitySystem = {
+    currentSanity: 100,
+    maxSanity: 100,
+    sanityDecayRate: 0.5, // Sanity lost per second
+    sanityRecoveryRate: 0.2, // Sanity recovered per second when safe
+    lowSanityThreshold: 30,
+    criticalSanityThreshold: 15,
+    
+    // Events that affect sanity
+    events: {
+        enemyNearby: -2, // Sanity lost per second when enemies are close
+        houseShift: -5, // Sanity lost when house shifts
+        rushEvent: -8, // Sanity lost during rush events
+        stalkerChase: -10, // Sanity lost when stalker is chasing
+        hidden: 1, // Sanity recovered when hidden in closet
+        vitaminBoost: 2, // Sanity recovered when using vitamins
+    },
+    
+    update: function(deltaTime) {
+        let sanityChange = 0;
+        
+        // Base sanity decay
+        sanityChange -= this.sanityDecayRate * deltaTime;
+        
+        // Check for enemies nearby
+        const enemiesNearby = enemies.some(e => {
+            if (e.currentFloor !== currentFloor) return false;
+            const dist = Math.hypot(e.x - player.x, e.y - player.y);
+            return dist < 6;
+        });
+        
+        if (enemiesNearby) {
+            sanityChange += this.events.enemyNearby * deltaTime;
+        }
+        
+        // Check for stalker
+        if (stalkerEnemy && stalkerEnemy.currentFloor === currentFloor) {
+            const stalkerDist = Math.hypot(stalkerEnemy.x - player.x, stalkerEnemy.y - player.y);
+            if (stalkerDist < 8) {
+                sanityChange += this.events.stalkerChase * deltaTime;
+            }
+        }
+        
+        // Rush event effect
+        if (rushEvent.active) {
+            sanityChange += this.events.rushEvent * deltaTime;
+        }
+        
+        // Hidden state recovery
+        if (currentGameState === GAME_STATE.HIDDEN) {
+            sanityChange += this.events.hidden * deltaTime;
+        }
+        
+        // Vitamin boost effect
+        if (inventory.vitActiveUntil && Date.now() < inventory.vitActiveUntil) {
+            sanityChange += this.events.vitaminBoost * deltaTime;
+        }
+        
+        // Apply sanity change
+        this.currentSanity = Math.max(0, Math.min(this.maxSanity, this.currentSanity + sanityChange));
+        
+        // Check for sanity-based effects
+        this.checkSanityEffects();
+    },
+    
+    checkSanityEffects: function() {
+        if (this.currentSanity <= this.criticalSanityThreshold) {
+            // Critical sanity - visual and audio effects
+            if (!this.criticalEffectsActive) {
+                this.criticalEffectsActive = true;
+                this.activateCriticalEffects();
+            }
+        } else if (this.currentSanity <= this.lowSanityThreshold) {
+            // Low sanity - moderate effects
+            if (!this.lowEffectsActive) {
+                this.lowEffectsActive = true;
+                this.activateLowSanityEffects();
+            }
+        } else {
+            // Normal sanity - deactivate effects
+            if (this.criticalEffectsActive || this.lowEffectsActive) {
+                this.deactivateSanityEffects();
+            }
+        }
+    },
+    
+    activateCriticalEffects: function() {
+        // Add visual distortion
+        this.addVisualDistortion();
+        // Increase enemy spawn rate
+        this.increaseEnemySpawnRate();
+        // Add audio hallucinations
+        this.addAudioHallucinations();
+    },
+    
+    activateLowSanityEffects: function() {
+        // Subtle visual effects
+        this.addSubtleVisualEffects();
+        // Slight enemy behavior changes
+        this.modifyEnemyBehavior();
+    },
+    
+    deactivateSanityEffects: function() {
+        this.criticalEffectsActive = false;
+        this.lowEffectsActive = false;
+        // Remove all effects
+        this.removeVisualEffects();
+        this.removeAudioEffects();
+        this.resetEnemyBehavior();
+    },
+    
+    addVisualDistortion: function() {
+        // Add screen shake and distortion effects
+        if (!this.distortionCanvas) {
+            this.createDistortionCanvas();
+        }
+    },
+    
+    addSubtleVisualEffects: function() {
+        // Add subtle screen effects for low sanity
+        if (!this.subtleEffectsActive) {
+            this.subtleEffectsActive = true;
+        }
+    },
+    
+    createDistortionCanvas: function() {
+        // Create overlay canvas for visual effects
+        this.distortionCanvas = document.createElement('canvas');
+        this.distortionCanvas.style.position = 'absolute';
+        this.distortionCanvas.style.top = '0';
+        this.distortionCanvas.style.left = '0';
+        this.distortionCanvas.style.pointerEvents = 'none';
+        this.distortionCanvas.style.zIndex = '1000';
+        document.body.appendChild(this.distortionCanvas);
+    },
+    
+    increaseEnemySpawnRate: function() {
+        // Increase chance of enemy spawning
+        if (Math.random() < 0.001) { // Very low chance per frame
+            let spawnPos = findRandomEmptyCell(map);
+            if (spawnPos) {
+                let enemyType = 'hallucination';
+                enemies.push({ 
+                    x: spawnPos.x + 0.5, 
+                    y: spawnPos.y + 0.5, 
+                    path: [], 
+                    state: 'HALLUCINATION',
+                    type: enemyType,
+                    lastSeenPlayer: null,
+                    spawnTime: Date.now(),
+                    spawnGracePeriod: 3000,
+                    hearingRange: 3,
+                    memory: 5000,
+                    speed: currentEnemySpeed * 0.7,
+                    stealth: 1.0,
+                    currentFloor: currentFloor,
+                    isHallucination: true,
+                    life: 10000 // Hallucinations disappear after 10 seconds
+                });
+                message.text = "Your mind plays tricks on you..."; message.life = 150;
+            }
+        }
+    },
+    
+    modifyEnemyBehavior: function() {
+        // Slightly increase enemy awareness when sanity is low
+        for (let enemy of enemies) {
+            if (enemy.currentFloor === currentFloor && !enemy.isHallucination) {
+                enemy.hearingRange *= 1.1;
+            }
+        }
+    },
+    
+    resetEnemyBehavior: function() {
+        // Reset enemy behavior to normal
+        for (let enemy of enemies) {
+            if (enemy.currentFloor === currentFloor && !enemy.isHallucination) {
+                enemy.hearingRange = enemy.type === 'hunter' ? 8 : enemy.type === 'ambusher' ? 6 : 4;
+            }
+        }
+    },
+    
+    removeVisualEffects: function() {
+        if (this.distortionCanvas) {
+            this.distortionCanvas.remove();
+            this.distortionCanvas = null;
+        }
+        this.subtleEffectsActive = false;
+    },
+    
+    removeAudioEffects: function() {
+        // Remove audio hallucinations
+        this.audioHallucinations = false;
+    },
+    
+    addAudioHallucinations: function() {
+        // Add random audio cues that don't correspond to real events
+        if (!this.audioHallucinations && Math.random() < 0.0005) {
+            this.audioHallucinations = true;
+            // Play random scary sound
+            const sounds = ['enemyGrowl', 'houseShift', 'rushEvent'];
+            const randomSound = sounds[Math.floor(Math.random() * sounds.length)];
+            playSound(randomSound, 0.3);
+            message.text = "You hear something... or do you?"; message.life = 120;
+        }
+    }
+};
 
 // New game features
 let playerAbilities = { 
@@ -1674,6 +1889,10 @@ function resetGame() {
     playerAbilities.crouching = false;
     playerAbilities.stealthMode = false;
     
+    // Reset sanity system
+    sanitySystem.currentSanity = sanitySystem.maxSanity;
+    sanitySystem.deactivateSanityEffects();
+    
     // Reset closet-related timers
     player.closetExitTime = null;
     player.closetGracePeriod = 3000; // 3 seconds of grace period
@@ -1761,30 +1980,56 @@ function resetGame() {
         if (d && map[d.y][d.x] === 0) map[d.y][d.x] = 2; // 2 for BRONZE door
     }
     
-    // Place closets on wall tiles, and also create an interior floor tile just behind
+    // Place closets on wall tiles - simplified for reliability
     closetInteriors = [];
     let closetsPlaced = 0;
     let attempts = 0;
-    while (closetsPlaced < 12 && attempts++ < 600) {
+    
+    while (closetsPlaced < 10 && attempts++ < 600) {
         let c = findRandomWallAdjacentToFloor();
         if (!c) break;
-        const nearDoor = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => map[c.y+dy] && (map[c.y+dy][c.x+dx] === 2 || map[c.y+dy][c.x+dx] === 3));
-        if (nearDoor) continue;
-        // Determine facing: from wall to corridor
+        
+        // Don't place closets too close to doors or stairs
+        const nearImportant = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => {
+            const nx = c.x + dx;
+            const ny = c.y + dy;
+            return map[ny] && (map[ny][nx] === 2 || map[ny][nx] === 3 || map[ny][nx] === 5 || map[ny][nx] === 6);
+        });
+        if (nearImportant) continue;
+        
+        // Determine facing direction: from wall to corridor
         const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
         let face = null;
-        for (let [dx,dy] of neighbors) { if (map[c.y+dy] && map[c.y+dy][c.x+dx] === 0) { face = [dx,dy]; break; } }
+        for (let [dx,dy] of neighbors) { 
+            if (map[c.y+dy] && map[c.y+dy][c.x+dx] === 0) { 
+                face = [dx,dy]; 
+                break; 
+            } 
+        }
         if (!face) continue;
-        map[c.y][c.x] = 4; // closet on wall
+        
+        // Create closet interior
         const interiorX = c.x - face[0];
         const interiorY = c.y - face[1];
-        if (interiorY>=0 && interiorY<MAP_SIZE && interiorX>=0 && interiorX<MAP_SIZE) {
-            // Carve interior as floor if it was wall, to make a hollow closet
-            if (map[interiorY][interiorX] === 1) map[interiorY][interiorX] = 0;
-            closetInteriors.push({ x: interiorX, y: interiorY });
+        
+        if (interiorY >= 0 && interiorY < MAP_SIZE && interiorX >= 0 && interiorX < MAP_SIZE) {
+            // Only place if interior space is a wall (can be carved)
+            if (map[interiorY][interiorX] === 1) {
+                map[c.y][c.x] = 4; // closet on wall
+                map[interiorY][interiorX] = 0; // carve interior as floor
+                closetInteriors.push({ 
+                    x: interiorX, 
+                    y: interiorY, 
+                    facingX: c.x, 
+                    facingY: c.y,
+                    direction: face 
+                });
+                closetsPlaced++;
+            }
         }
-        closetsPlaced++;
     }
+    
+    console.log(`Placed ${closetsPlaced} closets`);
 
     // Place containers snapped to walls along corridors (smaller footprint)
     for (let i = 0; i < 14; i++) {
@@ -2167,7 +2412,7 @@ function playAudioCue(type) {
             frequency = 200; // Low, ominous tone
             duration = 0.3;
             volume = 0.3;
-            break;
+                    break;
         case 'warning':
             frequency = 400; // Medium warning tone
             duration = 0.2;
@@ -2198,9 +2443,9 @@ function playAudioCue(type) {
 function renderRunSummary() {
     if (summaryPanel && summaryPanel.style.display === 'block') {
         // Summary panel is already visible, no need to re-render
-        return;
-    }
-    
+                return;
+            }
+            
     // This function is called when the summary panel needs to be rendered
     // The actual content is set in showRunSummary()
 }
@@ -2438,7 +2683,7 @@ function generateMaze(w, h) {
                 queue.push([nx, ny]);
             }
         }
-    }
+}
     
     // Connect any unreachable areas
     for (let y = 0; y < h; y++) {
@@ -2545,6 +2790,91 @@ function findRandomWallAdjacentToFloor() {
         }
         if (hasOpen) return { x, y };
     }
+    return null;
+}
+
+
+
+function isClosetInterior(x, y) {
+    // Check if the given position is a closet interior tile
+    return closetInteriors.some(closet => closet.x === x && closet.y === y);
+}
+
+function isOnClosetTile(x, y) {
+    // Check if the given position is either a closet wall or interior
+    return map[y] && (map[y][x] === 4 || isClosetInterior(x, y));
+}
+
+function isNearCloset(x, y) {
+    // Check if player is within 1 tile of a closet
+    for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE) {
+                if (map[ny][nx] === 4 || isClosetInterior(nx, ny)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function findNearestCloset(x, y) {
+    // Find the closest closet to the given position
+    let nearestCloset = null;
+    let nearestDist = Infinity;
+    
+    for (let closet of closetInteriors) {
+        const dist = Math.hypot(closet.x - x, closet.y - y);
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearestCloset = closet;
+        }
+    }
+    
+    return nearestCloset;
+}
+
+function isFacingCloset() {
+    // Check if player is facing a closet wall
+    const facingX = Math.floor(player.x + Math.cos(player.angle) * 0.7);
+    const facingY = Math.floor(player.y + Math.sin(player.angle) * 0.7);
+    
+    if (facingX < 0 || facingX >= MAP_SIZE || facingY < 0 || facingY >= MAP_SIZE) return false;
+    
+    return map[facingY][facingX] === 4; // Closet wall tile
+}
+
+function findClosetData(x, y) {
+    // Find closet data for a given position (either interior or wall)
+    if (map[y][x] === 4) {
+        // This is a closet wall - find the corresponding interior
+        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+        for (let [dx, dy] of directions) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+                // Check if this is a closet interior
+                const closet = closetInteriors.find(c => c.x === nx && c.y === ny);
+                if (closet) {
+                    return {
+                        ...closet,
+                        wallX: x,
+                        wallY: y
+                    };
+                }
+            }
+        }
+    } else if (map[y][x] === 0) {
+        // This might be a closet interior
+        const closet = closetInteriors.find(c => c.x === x && c.y === y);
+        if (closet) {
+            return closet;
+        }
+    }
+    
     return null;
 }
 
@@ -2815,6 +3145,9 @@ function shiftMaze() {
     // Show prominent house shift popup
     showPopup("HOUSE HAS SHIFTED! ");
     
+    // Sanity effect from house shift
+    sanitySystem.currentSanity = Math.max(0, sanitySystem.currentSanity + sanitySystem.events.houseShift);
+    
     lastShiftTime = Date.now();
     
     // Play house shift sound
@@ -3028,6 +3361,38 @@ function useNoiseMaker() {
     message.life = 150;
 }
 
+function usePanicButton() {
+    // Panic button - emergency sanity recovery and temporary invincibility
+    if (sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold) {
+        // Dramatic sanity recovery
+        sanitySystem.currentSanity = Math.min(sanitySystem.maxSanity, sanitySystem.currentSanity + 40);
+        
+        // Temporary invincibility (3 seconds)
+        player.panicInvincibility = Date.now() + 3000;
+        
+        // Clear all hallucinations
+        enemies = enemies.filter(e => !e.isHallucination);
+        
+        // Temporary speed boost
+        player.panicSpeedBoost = Date.now() + 5000;
+        
+        // Visual and audio effects
+        showPopup("PANIC MODE ACTIVATED!");
+        playSound('rushEvent', 0.8);
+        
+        message.text = "PANIC MODE: You feel a surge of adrenaline!";
+        message.life = 200;
+        
+        // Deactivate all sanity effects temporarily
+        sanitySystem.deactivateSanityEffects();
+        setTimeout(() => {
+            if (sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold) {
+                sanitySystem.checkSanityEffects();
+            }
+        }, 10000); // Re-check after 10 seconds
+    }
+}
+
 
 // =============================================================================
 // --- INPUT HANDLING ---
@@ -3157,6 +3522,9 @@ function setupInputs() {
                 message.text = 'Speed surge!'; 
                 message.life = 120; 
                 if (hudVits) hudVits.textContent = String(inventory.vitamins); 
+                
+                // Sanity boost from vitamins
+                sanitySystem.currentSanity = Math.min(sanitySystem.maxSanity, sanitySystem.currentSanity + 15);
             }
             // New abilities
             if (e.key.toLowerCase() === 'c') {
@@ -3176,6 +3544,11 @@ function setupInputs() {
                 useNoiseMaker();
                 message.text = 'Noise maker activated!';
                 message.life = 120;
+            }
+            
+            // Panic button - press P when sanity is critically low
+            if (e.key.toLowerCase() === 'p' && sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold) {
+                usePanicButton();
             }
             // Debug: Manual floor change (F1 for up, F2 for down)
             if (e.key === 'F1') {
@@ -3474,9 +3847,19 @@ function tryInteract() {
         return;
     }
 
-    // If facing a closet wall, use the main toggle function instead of duplicating logic
+    // If facing a closet wall, handle it directly
     if (ix>=0 && ix<MAP_SIZE && iy>=0 && iy<MAP_SIZE && map[iy][ix] === 4) {
-        tryToggleHide();
+        // Check if player is near enough to enter the closet
+        const playerTileX = Math.floor(player.x);
+        const playerTileY = Math.floor(player.y);
+        const distToCloset = Math.hypot(playerTileX - ix, playerTileY - iy);
+        
+        if (distToCloset <= 1.5) { // Within 1.5 tiles
+            // Direct closet entry - don't call tryToggleHide to avoid freezing
+            enterClosetDirectly(ix, iy);
+        } else {
+            message.text = "You need to get closer to the closet to hide in it."; message.life = 120;
+        }
         return;
     }
     
@@ -3490,6 +3873,78 @@ function tryInteract() {
             return;
         }
     }
+}
+
+function enterClosetDirectly(closetX, closetY) {
+    console.log("enterClosetDirectly called for closet at", closetX, closetY);
+    
+    // Find the closet interior for this wall
+    let closetData = null;
+    
+    // First, try to find the closet by looking for the wall tile in closetInteriors
+    // The closet interior should have facingX and facingY that match our wall position
+    for (let closet of closetInteriors) {
+        if (closet.facingX === closetX && closet.facingY === closetY) {
+            closetData = {
+                ...closet,
+                wallX: closetX,
+                wallY: closetY
+            };
+            break;
+        }
+    }
+    
+    // Fallback: if not found by facing coordinates, search in all directions
+    if (!closetData) {
+        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+        for (let [dx, dy] of directions) {
+            const nx = closetX + dx;
+            const ny = closetY + dy;
+            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+                // Check if this is a closet interior
+                const closet = closetInteriors.find(c => c.x === nx && c.y === ny);
+                if (closet) {
+                    closetData = {
+                        ...closet,
+                        wallX: closetX,
+                        wallY: closetY
+                    };
+                    break;
+                }
+            }
+        }
+    }
+    
+    if (!closetData) {
+        console.log("No closet interior found for wall at", closetX, closetY);
+        message.text = "This closet is not accessible."; message.life = 120;
+        return;
+    }
+    
+    // Move player into the closet interior
+    player.x = closetData.x + 0.5;
+    player.y = closetData.y + 0.5;
+    
+    // Face the opening direction (toward the corridor to see through the slit)
+    const [dx, dy] = closetData.direction;
+    player.angle = Math.atan2(dy, dx);
+    
+    // Enter hidden state
+    currentGameState = GAME_STATE.HIDDEN;
+    player.closetEntryTime = Date.now();
+    player.closetExitTime = null;
+    player.currentCloset = closetData;
+    
+    // Play closet opening sound
+    playSound('closetOpen', 0.8);
+    
+    // Show hidden indicator
+    if (hiddenIndicator) hiddenIndicator.style.display = 'block';
+    
+    message.text = "You're hidden in the closet. Press H to exit.";
+    message.life = 200;
+    
+    console.log("Successfully entered closet directly, new state:", currentGameState, "closet:", closetData);
 }
 
 function tryToggleHide() {
@@ -3506,91 +3961,65 @@ function tryToggleHide() {
     if (currentGameState === GAME_STATE.PLAYING) {
         let playerTileX = Math.floor(player.x);
         let playerTileY = Math.floor(player.y);
-        // Closet can be either under player (floor closet) or in front if closet is a wall tile
-        let facingX = Math.floor(player.x + Math.cos(player.angle) * 0.7);
-        let facingY = Math.floor(player.y + Math.sin(player.angle) * 0.7);
-        const onCloset = map[playerTileY][playerTileX] === 4;
-        const facingCloset = (facingX >=0 && facingX < MAP_SIZE && facingY >= 0 && facingY < MAP_SIZE && map[facingY][facingX] === 4);
-        console.log("Player at", playerTileX, playerTileY, "onCloset:", onCloset, "facingCloset:", facingCloset, "map tile:", map[playerTileY][playerTileX]);
         
-        if(onCloset || facingCloset) {
-            // Check if we can actually exit before entering hidden state
-            let canExit = false;
-            for (let y = 0; y < MAP_SIZE; y++) {
-                for (let x = 0; x < MAP_SIZE; x++) {
-                    if (map[y][x] === 4) { // Found a closet
-                        // Check if there's an accessible open tile in front of it
-                        const directions = [[1,0], [-1,0], [0,1], [0,-1]];
-                        for (let [dx, dy] of directions) {
-                            const nx = x + dx;
-                            const ny = y + dy;
-                            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
-                                // Check if this position is accessible
-                                let accessible = false;
-                                const checkDirections = [[1,0], [-1,0], [0,1], [0,-1]];
-                                for (let [cdx, cdy] of checkDirections) {
-                                    const cx = nx + cdx;
-                                    const cy = ny + cdy;
-                                    if (cx >= 0 && cx < MAP_SIZE && cy >= 0 && cy < MAP_SIZE && map[cy][cx] === 0) {
-                                        accessible = true;
-                                        break;
-                                    }
-                                }
-                                if (accessible) {
-                                    canExit = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (canExit) break;
-                    }
+        // Enhanced closet detection: check if player is on, near, or facing a closet
+        const onClosetTile = isOnClosetTile(playerTileX, playerTileY);
+        const nearCloset = isNearCloset(playerTileX, playerTileY);
+        const facingCloset = isFacingCloset();
+        
+        console.log("Player at", playerTileX, playerTileY, "onClosetTile:", onClosetTile, "nearCloset:", nearCloset, "facingCloset:", facingCloset);
+        
+        if (onClosetTile || nearCloset || facingCloset) {
+            // Find the closet data
+            let closetData = null;
+            if (onClosetTile) {
+                closetData = findClosetData(playerTileX, playerTileY);
+                console.log("Found closet data for onClosetTile:", closetData);
+                
+                // Fallback: if findClosetData fails, try findNearestCloset
+                if (!closetData) {
+                    closetData = findNearestCloset(playerTileX, playerTileY);
+                    console.log("Fallback to findNearestCloset:", closetData);
                 }
-                if (canExit) break;
+            } else if (nearCloset) {
+                // Find the closest closet
+                closetData = findNearestCloset(playerTileX, playerTileY);
+                console.log("Found closet data for nearCloset:", closetData);
+            } else if (facingCloset) {
+                // Player is facing a closet - find the closet they're facing
+                const facingX = Math.floor(player.x + Math.cos(player.angle) * 0.7);
+                const facingY = Math.floor(player.y + Math.sin(player.angle) * 0.7);
+                closetData = findClosetData(facingX, facingY);
+                console.log("Found closet data for facingCloset:", closetData);
+                
+                // Fallback: if findClosetData fails, try findNearestCloset
+                if (!closetData) {
+                    closetData = findNearestCloset(playerTileX, playerTileY);
+                    console.log("Fallback to findNearestCloset for facingCloset:", closetData);
+                }
             }
             
-            if (!canExit) {
-                message.text = "This closet is too cramped to hide in safely."; message.life = 120;
+            if (!closetData) {
+                console.log("No closet data found - closets available:", closetInteriors);
+                message.text = "This closet is not safe to hide in."; message.life = 120;
                 return;
             }
             
-            // Position player to see through the closet slit
-            if (onCloset) {
-                // Player is on a closet floor tile - position them to face the opening
-                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-                let facingDirection = null;
-                for (let [dx,dy] of neighbors) {
-                    const nx = playerTileX + dx;
-                    const ny = playerTileY + dy;
-                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 1) {
-                        // Found a wall - face away from it (toward the opening)
-                        facingDirection = [-dx, -dy];
-                        break;
-                    }
-                }
-                if (facingDirection) {
-                    player.angle = Math.atan2(facingDirection[1], facingDirection[0]);
-                }
-            } else if (facingCloset) {
-                // Player is facing a closet wall - position them inside
-                const closetX = facingX;
-                const closetY = facingY;
-                // Find the opening direction
-                const neighbors = [[1,0],[-1,0],[0,1],[0,-1]];
-                for (let [dx,dy] of neighbors) {
-                    const nx = closetX + dx;
-                    const ny = closetY + dy;
-                    if (nx>=0 && nx<MAP_SIZE && ny>=0 && ny<MAP_SIZE && map[ny][nx] === 0) {
-                        // Found the opening - face toward it
+            // Move player into the closet interior and position them to see out
+            player.x = closetData.x + 0.5;
+            player.y = closetData.y + 0.5;
+            
+            // Face the opening direction (toward the corridor to see through the slit)
+            const [dx, dy] = closetData.direction;
                         player.angle = Math.atan2(dy, dx);
-                        break;
-                    }
-                }
-            }
+            
+            console.log("Positioned player in closet at", player.x, player.y, "facing", player.angle);
             
             // Enter hidden state
             currentGameState = GAME_STATE.HIDDEN;
             player.closetEntryTime = Date.now();
             player.closetExitTime = null;
+            player.currentCloset = closetData;
             
             // Play closet opening sound
             playSound('closetOpen', 0.8);
@@ -3601,7 +4030,7 @@ function tryToggleHide() {
             message.text = "You're hidden in the closet. Press H to exit.";
             message.life = 200;
             
-            console.log("Successfully entered closet, new state:", currentGameState);
+            console.log("Successfully entered closet, new state:", currentGameState, "closet:", closetData);
         } else {
             message.text = "No safe closet nearby to hide in."; message.life = 120;
         }
@@ -3611,56 +4040,95 @@ function tryToggleHide() {
 function handleClosetExit() {
     console.log("handleClosetExit called");
     
-    // Find a safe exit position
     let placed = false;
-    let exitPositions = [];
     
-    // Find all closet openings
-    for (let y = 0; y < MAP_SIZE; y++) {
-        for (let x = 0; x < MAP_SIZE; x++) {
-            if (map[y][x] === 4) {
-                const directions = [[1,0], [-1,0], [0,1], [0,-1]];
-                for (let [dx, dy] of directions) {
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
-                        if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
-                            exitPositions.push({
-                                x: nx, y: ny,
-                                closetX: x, closetY: y,
-                                dx: dx, dy: dy,
-                                accessibility: countAccessibleNeighbors(nx, ny)
-                            });
+    // Use the current closet data if available
+    if (player.currentCloset) {
+        const closet = player.currentCloset;
+        const [dx, dy] = closet.direction;
+        
+        // Calculate the exit position (in front of the closet)
+        const exitX = closet.facingX + dx;
+        const exitY = closet.facingY + dy;
+        
+        // Check if the exit position is safe and not blocked by house shift
+        if (exitX >= 0 && exitX < MAP_SIZE && exitY >= 0 && exitY < MAP_SIZE && 
+            map[exitY][exitX] === 0 && isPositionAccessible(exitX, exitY) && !isWallCollision(exitX, exitY)) {
+            
+            player.x = exitX + 0.5;
+            player.y = exitY + 0.5;
+            player.angle = Math.atan2(dy, dx); // Face away from the closet
+            placed = true;
+            console.log("Exited closet using stored data, placed at:", exitX, exitY);
+        }
+    }
+    
+    // Fallback: find any safe exit position
+    if (!placed) {
+        let exitPositions = [];
+        
+        // Find all closet openings
+        for (let y = 0; y < MAP_SIZE; y++) {
+            for (let x = 0; x < MAP_SIZE; x++) {
+                if (map[y][x] === 4) {
+                    const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+                    for (let [dx, dy] of directions) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+                        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+                            // Enhanced safety check
+                            if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
+                                exitPositions.push({
+                                    x: nx, y: ny,
+                                    closetX: x, closetY: y,
+                                    dx: dx, dy: dy,
+                                    accessibility: countAccessibleNeighbors(nx, ny)
+                                });
+                            }
                         }
                     }
                 }
             }
         }
-    }
-    
-    // Sort by accessibility
-    exitPositions.sort((a, b) => b.accessibility - a.accessibility);
-    
-    // Try to place player
-    for (let pos of exitPositions) {
-        if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y)) {
-            player.x = pos.x + 0.5;
-            player.y = pos.y + 0.5;
-            player.angle = Math.atan2(pos.dy, pos.dx);
-            placed = true;
-            console.log("Exited closet, placed player at:", pos.x, pos.y);
-            break;
+        
+        // Sort by accessibility
+        exitPositions.sort((a, b) => b.accessibility - a.accessibility);
+        
+        // Try to place player
+        for (let pos of exitPositions) {
+            if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y)) {
+                player.x = pos.x + 0.5;
+                player.y = pos.y + 0.5;
+                player.angle = Math.atan2(pos.dy, pos.dx);
+                placed = true;
+                console.log("Exited closet using fallback, placed at:", pos.x, pos.y);
+                break;
+            }
         }
     }
     
-    // Fallback strategies
+    // Emergency fallback
     if (!placed) {
         let bestPosition = findBestSafePosition();
         if (bestPosition && !isWallCollision(bestPosition.x, bestPosition.y)) {
             player.x = bestPosition.x + 0.5;
             player.y = bestPosition.y + 0.5;
             placed = true;
-            console.log("Closet exit fallback position:", bestPosition.x, bestPosition.y);
+            console.log("Closet exit emergency fallback position:", bestPosition.x, bestPosition.y);
+        } else {
+            // Last resort: find any open floor tile
+            for (let y = 1; y < MAP_SIZE - 1; y++) {
+                for (let x = 1; x < MAP_SIZE - 1; x++) {
+                    if (map[y][x] === 0 && !isWallCollision(x, y)) {
+                        player.x = x + 0.5;
+                        player.y = y + 0.5;
+                        placed = true;
+                        console.log("Closet exit last resort spawn at:", x, y);
+                        break;
+                    }
+                }
+                if (placed) break;
+            }
         }
     }
     
@@ -3674,6 +4142,7 @@ function handleClosetExit() {
     currentGameState = GAME_STATE.PLAYING;
     player.closetEntryTime = null;
     player.closetExitTime = Date.now();
+    player.currentCloset = null;
     if (hiddenIndicator) hiddenIndicator.style.display = 'none';
     
     // Play closet closing sound
@@ -3681,7 +4150,7 @@ function handleClosetExit() {
     
     console.log("Successfully exited closet, new state:", currentGameState, "placed at:", player.x, player.y);
 }
-
+            
 function useStairs(direction) {
     if (direction === 'up') {
         if (currentFloor < floors.length - 1) {
@@ -3751,7 +4220,7 @@ function useStairs(direction) {
                     if (prng() < 0.5) { let p = findRandomEmptyCell(map); if (p) sprites.push({ x: p.x + 0.5, y: p.y + 0.5, type: 'lockpick', texture: assets.lockpickSprite }); }
                     
                     console.log(`Successfully moved to floor ${currentFloor + 1} at position ${player.x}, ${player.y}`);
-                } else {
+        } else {
                     message.text = "These stairs lead to a dead end!";
                     message.life = 120;
                     currentFloor--; // Go back
@@ -3943,11 +4412,11 @@ function hasSafeExit(closetX, closetY) {
                     if (px >= 0 && px < MAP_SIZE && py >= 0 && py < MAP_SIZE && map[py][px] === 0) {
                         if (px !== closetX || py !== closetY) { // Not back into the closet
                             hasPathAway = true;
-                            break;
-                        }
+                        break;
                     }
                 }
-                
+            }
+            
                 if (hasPathAway) {
                     return true;
                 }
@@ -3958,79 +4427,7 @@ function hasSafeExit(closetX, closetY) {
     return false;
 }
 
-function handleClosetExit() {
-    console.log("handleClosetExit called");
-    
-    // Find a safe exit position
-    let placed = false;
-    let exitPositions = [];
-    
-    // Find all closet openings
-    for (let y = 0; y < MAP_SIZE; y++) {
-        for (let x = 0; x < MAP_SIZE; x++) {
-            if (map[y][x] === 4) {
-                const directions = [[1,0], [-1,0], [0,1], [0,-1]];
-                for (let [dx, dy] of directions) {
-                    const nx = x + dx;
-                    const ny = y + dy;
-                    if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
-                        if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
-                            exitPositions.push({
-                                x: nx, y: ny,
-                                closetX: x, closetY: y,
-                                dx: dx, dy: dy,
-                                accessibility: countAccessibleNeighbors(nx, ny)
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Sort by accessibility
-    exitPositions.sort((a, b) => b.accessibility - a.accessibility);
-    
-    // Try to place player
-    for (let pos of exitPositions) {
-        if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y)) {
-            player.x = pos.x + 0.5;
-            player.y = pos.y + 0.5;
-            player.angle = Math.atan2(pos.dy, pos.dx);
-            placed = true;
-            console.log("Exited closet, placed player at:", pos.x, pos.y);
-            break;
-        }
-    }
-    
-    // Fallback strategies
-    if (!placed) {
-        let bestPosition = findBestSafePosition();
-        if (bestPosition && !isWallCollision(bestPosition.x, bestPosition.y)) {
-            player.x = bestPosition.x + 0.5;
-            player.y = bestPosition.y + 0.5;
-            placed = true;
-            console.log("Closet exit fallback position:", bestPosition.x, bestPosition.y);
-        }
-    }
-    
-    if (!placed) {
-        player.x = 1.5;
-        player.y = 1.5;
-        console.log("Closet exit emergency spawn");
-    }
-    
-    // Reset state
-    currentGameState = GAME_STATE.PLAYING;
-    player.closetEntryTime = null;
-    player.closetExitTime = Date.now();
-    if (hiddenIndicator) hiddenIndicator.style.display = 'none';
-    
-    // Play closet closing sound
-    playSound('closetClose', 0.6);
-    
-    console.log("Successfully exited closet, new state:", currentGameState, "placed at:", player.x, player.y);
-}
+// Duplicate function removed - using the one defined earlier
 
 
 // =============================================================================
@@ -4091,8 +4488,9 @@ function handleMovement() {
         // Sprint mechanics
         const sprinting = !!keys['shift'] && player.stamina > 0.1;
         const vitBoost = (inventory.vitActiveUntil||0) > Date.now() ? 1.1 : 1; // Reduced vitamin boost
+        const panicBoost = (player.panicSpeedBoost||0) > Date.now() ? 1.3 : 1; // Panic mode speed boost
         const crouchModifier = playerAbilities.crouching ? 0.8 : 1; // Less severe crouch penalty
-        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.15 : 1) * vitBoost * crouchModifier; // Reduced sprint boost
+        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.15 : 1) * vitBoost * panicBoost * crouchModifier; // Reduced sprint boost
         dx = dx/mag * MOVE_SPEED * speedMul;
         dy = dy/mag * MOVE_SPEED * speedMul;
         // Stamina update
@@ -4135,6 +4533,10 @@ function update() {
     
     // Update audio
     updateAudio();
+    
+    // Update sanity system
+    const deltaTime = 1/60; // Assuming 60 FPS
+    sanitySystem.update(deltaTime);
     
     handleMovement();
 
@@ -4230,6 +4632,9 @@ function update() {
             rushEvent.startTime = now;
             rushEvent.lastTrigger = now;
             message.text = "RUSH EVENT! Hide quickly!"; message.life = 200;
+            
+            // Sanity effect from rush event
+            sanitySystem.currentSanity = Math.max(0, sanitySystem.currentSanity + sanitySystem.events.rushEvent);
             
             // Play rush event sound
             playSound('rushEvent', 0.9);
@@ -4350,7 +4755,8 @@ function update() {
         if (stalkerEnemy.currentFloor === currentFloor) {
             let distToPlayer = Math.hypot(player.x - stalkerEnemy.x, player.y - stalkerEnemy.y);
             const inGrace = (Date.now() - stageStartTime) < (player.graceMs || 0);
-            if (currentGameState === GAME_STATE.PLAYING && !inGrace && distToPlayer < 0.5) {
+            const inPanicInvincibility = (player.panicInvincibility||0) > Date.now();
+            if (currentGameState === GAME_STATE.PLAYING && !inGrace && !inPanicInvincibility && distToPlayer < 0.5) {
                 currentGameState = GAME_STATE.GAMEOVER; 
                 totalElapsedMs += Date.now() - stageStartTime;
                 saveRun(false);
@@ -4371,7 +4777,8 @@ function update() {
             let distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
             // Grace period after spawn
             const inGrace = (Date.now() - stageStartTime) < (player.graceMs || 0);
-            if (currentGameState === GAME_STATE.PLAYING && !inGrace && distToPlayer < 0.5) { 
+            const inPanicInvincibility = (player.panicInvincibility||0) > Date.now();
+            if (currentGameState === GAME_STATE.PLAYING && !inGrace && !inPanicInvincibility && distToPlayer < 0.5) { 
                 currentGameState = GAME_STATE.GAMEOVER; 
                 totalElapsedMs += Date.now() - stageStartTime;
                 saveRun(false);
@@ -4522,10 +4929,10 @@ function update() {
                 for (let x = 0; x < MAP_SIZE; x++) {
                     if (map[y][x] === 4) {
                         const directions = [[1,0], [-1,0], [0,1], [0,-1]];
-                        for (let [dx, dy] of directions) {
+        for (let [dx, dy] of directions) {
                             const nx = x + dx;
                             const ny = y + dy;
-                            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+            if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
                                 if (isPositionAccessible(nx, ny) && !isWallCollision(nx, ny)) {
                                     exitPositions.push({
                                         x: nx, y: ny,
@@ -4549,10 +4956,10 @@ function update() {
                     player.x = pos.x + 0.5;
                     player.y = pos.y + 0.5;
                     player.angle = Math.atan2(pos.dy, pos.dx);
-                    placed = true;
+                placed = true;
                     console.log("Auto-exit placed player at:", pos.x, pos.y);
-                    break;
-                }
+                break;
+            }
             }
             
             // Fallback strategies
@@ -4566,19 +4973,19 @@ function update() {
                 }
             }
             
-            if (!placed) {
-                player.x = 1.5;
-                player.y = 1.5;
+    if (!placed) {
+        player.x = 1.5;
+        player.y = 1.5;
                 console.log("Auto-exit emergency spawn");
-            }
-            
-            // Reset state
-            currentGameState = GAME_STATE.PLAYING;
-            player.closetEntryTime = null;
-            if (hiddenIndicator) hiddenIndicator.style.display = 'none';
-            
-            // Play closet closing sound
-            playSound('closetClose', 0.6);
+    }
+    
+    // Reset state
+    currentGameState = GAME_STATE.PLAYING;
+    player.closetEntryTime = null;
+    if (hiddenIndicator) hiddenIndicator.style.display = 'none';
+    
+    // Play closet closing sound
+    playSound('closetClose', 0.6);
         }
     }
     
@@ -4619,6 +5026,33 @@ function update() {
         if (hudSmoke) hudSmoke.textContent = String(inventory.smokeBomb);
         if (hudNoise) hudNoise.textContent = String(inventory.noiseMaker);
         if (rushWarning) rushWarning.style.display = rushEvent.active ? 'block' : 'none';
+        
+        // Update panic button indicator
+        if (panicButtonIndicator) {
+            panicButtonIndicator.style.display = sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold ? 'block' : 'none';
+        }
+        
+
+        
+        // Update sanity bar
+        if (sanityFill) {
+            const sanityPercent = (sanitySystem.currentSanity / sanitySystem.maxSanity) * 100;
+            sanityFill.style.width = sanityPercent + '%';
+            
+            // Change color based on sanity level
+            if (sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold) {
+                sanityFill.style.background = '#FF0000'; // Red for critical
+            } else if (sanitySystem.currentSanity <= sanitySystem.lowSanityThreshold) {
+                sanityFill.style.background = '#FF8C00'; // Orange for low
+            } else {
+                sanityFill.style.background = '#8B0000'; // Dark red for normal
+            }
+        }
+        
+        // Update sanity HUD text
+        if (hudSanity) {
+            hudSanity.textContent = Math.round(sanitySystem.currentSanity);
+        }
         
         // Show stairs indicator
         const playerTileX = Math.floor(player.x);
@@ -5230,6 +5664,8 @@ function render() {
                 ctx.fillText('C', mmX + x * cellSize + cellSize/2, mmY + y * cellSize + cellSize/2);
             }
         }
+    }
+    
     // Draw sprites: different colors for different types
     for (let s of sprites) {
         if (s.type === 'bronzeKey' || s.type === 'goldKey') {
@@ -5264,6 +5700,8 @@ function render() {
     // Draw player in cyan
     ctx.fillStyle = '#0ff';
     ctx.fillRect(mmX + (player.x) * cellSize - 2, mmY + (player.y) * cellSize - 2, 4, 4);
+    
+
     // Keen Eye: draw line to key direction
     if (player.keenEye) {
         const key = sprites.find(s => s.type === 'key');
@@ -5310,6 +5748,8 @@ function render() {
     ctx.fillText('C Closet', legendX + 12, legendY + legendLine * 15 + 6);
     legendLine++;
     
+
+    
     // Legend for items
     ctx.fillStyle = '#FFD700';
     ctx.fillRect(legendX + 120, legendY, 4, 4);
@@ -5326,8 +5766,7 @@ function render() {
     ctx.fillStyle = '#0ff';
     ctx.fillRect(legendX + 120, legendY + legendLine * 15, 4, 4);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.fillText('You', legendX + 120 + 12, legendY + legendLine * 15 + 6);
-    }
+    ctx.fillText('You', legendX + 120 + 12, legendY + legendLine * 15 + 6);
 }
 
 // =============================================================================
@@ -5457,6 +5896,74 @@ function updateGamepadState() {
 }
 
 // Helper functions for closet exit validation
+function checkClosetSafety() {
+    // Check if player is near a safe closet
+    const playerTileX = Math.floor(player.x);
+    const playerTileY = Math.floor(player.y);
+    
+    // Check if player is on or near a closet
+    if (isOnClosetTile(playerTileX, playerTileY) || isNearCloset(playerTileX, playerTileY)) {
+        return true;
+    }
+    
+    return false;
+}
+
+function isPositionSafeAfterShift(x, y) {
+    // Check if a position is safe considering potential house shifts
+    // This ensures the player won't be trapped after exiting a closet
+    
+    // Check if position has multiple escape routes
+    const directions = [[1,0], [-1,0], [0,1], [0,-1]];
+    let escapeRoutes = 0;
+    
+    for (let [dx, dy] of directions) {
+        const nx = x + dx;
+        const ny = y + dy;
+        
+        if (nx >= 0 && nx < MAP_SIZE && ny >= 0 && ny < MAP_SIZE && map[ny][nx] === 0) {
+            // Check if this neighbor also has escape routes
+            let neighborEscapeRoutes = 0;
+            for (let [dx2, dy2] of directions) {
+                const nx2 = nx + dx2;
+                const ny2 = ny + dy2;
+                if (nx2 >= 0 && nx2 < MAP_SIZE && ny2 >= 0 && ny2 < MAP_SIZE && map[ny2][nx2] === 0) {
+                    if (nx2 !== x || ny2 !== y) { // Not back to original position
+                        neighborEscapeRoutes++;
+                    }
+                }
+            }
+            
+            if (neighborEscapeRoutes >= 1) {
+                escapeRoutes++;
+            }
+        }
+    }
+    
+    // Position is safe if it has at least 2 escape routes
+    return escapeRoutes >= 2;
+}
+
+function findBestSafePositionAfterShift() {
+    // Find the best safe position considering house shifts
+    let bestPosition = null;
+    let bestScore = -1;
+    
+    for (let y = 1; y < MAP_SIZE - 1; y++) {
+        for (let x = 1; x < MAP_SIZE - 1; x++) {
+            if (map[y][x] === 0 && isPositionAccessible(x, y) && isPositionSafeAfterShift(x, y)) {
+                const accessibility = countAccessibleNeighbors(x, y);
+                if (accessibility > bestScore) {
+                    bestScore = accessibility;
+                    bestPosition = {x, y};
+                }
+            }
+        }
+    }
+    
+    return bestPosition;
+}
+
 function isPositionAccessible(x, y) {
     // Check if position is within bounds and open
     if (x < 0 || x >= MAP_SIZE || y < 0 || y >= MAP_SIZE || map[y][x] !== 0) {
