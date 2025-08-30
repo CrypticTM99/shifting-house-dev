@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Texture Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #333;
+            color: white;
+            padding: 20px;
+        }
+        .texture-display {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+        .texture-display img {
+            border: 2px solid #666;
+            margin: 5px;
+        }
+        .texture-display h3 {
+            margin: 5px 0;
+            color: #ffaa44;
+        }
+    </style>
+</head>
+<body>
+    <h1>Texture Generation Test</h1>
+    <div id="textures"></div>
+    
+    <script>
+        // Texture assets for 3D objects
+        let assets = {
+            wallTexture: null,
+            doorTexture: null,
+            closetTexture: null,
+            torchTexture: null,
+            bonesTexture: null,
+            cobwebTexture: null,
+            bloodStainTexture: null,
+            altarTexture: null,
+            cageTexture: null,
+            containerClosed: null,
+            containerOpen: null,
+            containerCrate: null,
+            containerCabinet: null,
+            containerDrawer: null
+        };
+
+        // Generate procedural textures
+        function generateAssets() {
+            try {
+                const TILE_SIZE = 64;
+                const genCanvas = document.createElement('canvas');
+                genCanvas.width = TILE_SIZE;
+                genCanvas.height = TILE_SIZE;
+                const gCtx = genCanvas.getContext('2d');
+
+                // Wall Texture
+                gCtx.fillStyle = '#4a4a4a';
+                gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                gCtx.strokeStyle = '#333';
+                gCtx.lineWidth = 2;
+                for (let i = 0; i < TILE_SIZE; i += 16) {
+                    gCtx.beginPath();
+                    gCtx.moveTo(0, i);
+                    gCtx.lineTo(TILE_SIZE, i);
+                    gCtx.stroke();
+                    for (let j = 0; j < TILE_SIZE; j += 32) {
+                        let offset = (i / 16) % 2 === 0 ? 0 : 16;
+                        gCtx.beginPath();
+                        gCtx.moveTo(j + offset, i);
+                        gCtx.lineTo(j + offset, i + 16);
+                        gCtx.stroke();
+                    }
+                }
+                assets.wallTexture = new Image();
+                assets.wallTexture.onload = () => console.log('Wall texture loaded');
+                assets.wallTexture.onerror = () => console.warn('Wall texture failed to load');
+                assets.wallTexture.src = genCanvas.toDataURL();
+
+                // Door Texture
+                gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+                gCtx.fillStyle = '#5a3b1f';
+                gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                gCtx.strokeStyle = '#b87333';
+                gCtx.lineWidth = 3;
+                gCtx.strokeRect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8);
+                gCtx.fillStyle = '#b87333';
+                gCtx.fillRect(TILE_SIZE * 0.75, TILE_SIZE * 0.45, TILE_SIZE * 0.1, TILE_SIZE * 0.1);
+                assets.doorTexture = new Image();
+                assets.doorTexture.src = genCanvas.toDataURL();
+
+                // Closet Texture
+                gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+                gCtx.fillStyle = '#3a2d1d';
+                gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+                gCtx.strokeStyle = '#2c2216';
+                gCtx.lineWidth = 4;
+                gCtx.beginPath();
+                gCtx.moveTo(TILE_SIZE / 2, 0);
+                gCtx.lineTo(TILE_SIZE / 2, TILE_SIZE);
+                gCtx.stroke();
+                gCtx.fillStyle = '#111';
+                gCtx.fillRect(TILE_SIZE / 2 - 8, TILE_SIZE * 0.1, 4, TILE_SIZE * 0.8);
+                assets.closetTexture = new Image();
+                assets.closetTexture.src = genCanvas.toDataURL();
+
+                // Torch Texture
+                gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+                // Wall bracket
+                gCtx.fillStyle = '#8B4513';
+                gCtx.fillRect(TILE_SIZE * 0.45, TILE_SIZE * 0.6, TILE_SIZE * 0.1, TILE_SIZE * 0.3);
+                // Torch handle
+                gCtx.fillStyle = '#8B4513';
+                gCtx.fillRect(TILE_SIZE * 0.47, TILE_SIZE * 0.5, TILE_SIZE * 0.06, TILE_SIZE * 0.15);
+                
+                // Glow effect (outer glow)
+                const glowGradient = gCtx.createRadialGradient(TILE_SIZE * 0.5, TILE_SIZE * 0.45, 0, TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.25);
+                glowGradient.addColorStop(0, 'rgba(255, 69, 0, 0.8)');
+                glowGradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.4)');
+                glowGradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+                gCtx.fillStyle = glowGradient;
+                gCtx.fillRect(TILE_SIZE * 0.25, TILE_SIZE * 0.2, TILE_SIZE * 0.5, TILE_SIZE * 0.5);
+                
+                // Flame base
+                gCtx.fillStyle = '#FF4500';
+                gCtx.beginPath();
+                gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.12, 0, Math.PI * 2);
+                gCtx.fill();
+                // Inner flame
+                gCtx.fillStyle = '#FFD700';
+                gCtx.beginPath();
+                gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.08, 0, Math.PI * 2);
+                gCtx.fill();
+                // Flame tip
+                gCtx.fillStyle = '#FF6347';
+                gCtx.beginPath();
+                gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.42, TILE_SIZE * 0.06, 0, Math.PI * 2);
+                gCtx.fill();
+                // Small sparkles
+                gCtx.fillStyle = '#FFFFFF';
+                gCtx.beginPath();
+                gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.38, TILE_SIZE * 0.03, 0, Math.PI * 2);
+                gCtx.fill();
+                assets.torchTexture = new Image();
+                assets.torchTexture.src = genCanvas.toDataURL();
+
+                console.log('Textures generated successfully');
+                displayTextures();
+                
+            } catch (error) {
+                console.error('Error generating textures:', error);
+            }
+        }
+
+        function displayTextures() {
+            const container = document.getElementById('textures');
+            container.innerHTML = '';
+            
+            Object.keys(assets).forEach(key => {
+                if (assets[key] && assets[key].src) {
+                    const div = document.createElement('div');
+                    div.className = 'texture-display';
+                    
+                    const h3 = document.createElement('h3');
+                    h3.textContent = key;
+                    div.appendChild(h3);
+                    
+                    const img = document.createElement('img');
+                    img.src = assets[key].src;
+                    img.alt = key;
+                    img.width = 128;
+                    img.height = 128;
+                    div.appendChild(img);
+                    
+                    container.appendChild(div);
+                }
+            });
+        }
+
+        // Generate textures when page loads
+        window.addEventListener('load', generateAssets);
+    </script>
+</body>
+</html>
