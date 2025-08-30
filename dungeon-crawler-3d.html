@@ -512,6 +512,324 @@
             lastAttack: 0
         };
 
+        // Texture assets for 3D objects
+        let assets = {
+            wallTexture: null,
+            doorTexture: null,
+            closetTexture: null,
+            torchTexture: null,
+            bonesTexture: null,
+            cobwebTexture: null,
+            bloodStainTexture: null,
+            altarTexture: null,
+            cageTexture: null,
+            containerClosed: null,
+            containerOpen: null,
+            containerCrate: null,
+            containerCabinet: null,
+            containerDrawer: null
+        };
+
+        // Generate procedural textures
+        function generateAssets() {
+            try {
+            const TILE_SIZE = 64;
+            const genCanvas = document.createElement('canvas');
+            genCanvas.width = TILE_SIZE;
+            genCanvas.height = TILE_SIZE;
+            const gCtx = genCanvas.getContext('2d');
+
+            // Wall Texture
+            gCtx.fillStyle = '#4a4a4a';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#333';
+            gCtx.lineWidth = 2;
+            for (let i = 0; i < TILE_SIZE; i += 16) {
+                gCtx.beginPath();
+                gCtx.moveTo(0, i);
+                gCtx.lineTo(TILE_SIZE, i);
+                gCtx.stroke();
+                for (let j = 0; j < TILE_SIZE; j += 32) {
+                    let offset = (i / 16) % 2 === 0 ? 0 : 16;
+                    gCtx.beginPath();
+                    gCtx.moveTo(j + offset, i);
+                    gCtx.lineTo(j + offset, i + 16);
+                    gCtx.stroke();
+                }
+            }
+            assets.wallTexture = new Image();
+            assets.wallTexture.onload = () => console.log('Wall texture loaded');
+            assets.wallTexture.onerror = () => console.warn('Wall texture failed to load');
+            assets.wallTexture.src = genCanvas.toDataURL();
+
+            // Door Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#5a3b1f';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#b87333';
+            gCtx.lineWidth = 3;
+            gCtx.strokeRect(4, 4, TILE_SIZE - 8, TILE_SIZE - 8);
+            gCtx.fillStyle = '#b87333';
+            gCtx.fillRect(TILE_SIZE * 0.75, TILE_SIZE * 0.45, TILE_SIZE * 0.1, TILE_SIZE * 0.1);
+            assets.doorTexture = new Image();
+            assets.doorTexture.src = genCanvas.toDataURL();
+
+            // Closet Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#3a2d1d';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#2c2216';
+            gCtx.lineWidth = 4;
+            gCtx.beginPath();
+            gCtx.moveTo(TILE_SIZE / 2, 0);
+            gCtx.lineTo(TILE_SIZE / 2, TILE_SIZE);
+            gCtx.stroke();
+            gCtx.fillStyle = '#111';
+            gCtx.fillRect(TILE_SIZE / 2 - 8, TILE_SIZE * 0.1, 4, TILE_SIZE * 0.8);
+            assets.closetTexture = new Image();
+            assets.closetTexture.src = genCanvas.toDataURL();
+
+            // Torch Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            // Wall bracket
+            gCtx.fillStyle = '#8B4513';
+            gCtx.fillRect(TILE_SIZE * 0.45, TILE_SIZE * 0.6, TILE_SIZE * 0.1, TILE_SIZE * 0.3);
+            // Torch handle
+            gCtx.fillStyle = '#8B4513';
+            gCtx.fillRect(TILE_SIZE * 0.47, TILE_SIZE * 0.5, TILE_SIZE * 0.06, TILE_SIZE * 0.15);
+            
+            // Glow effect (outer glow)
+            const glowGradient = gCtx.createRadialGradient(TILE_SIZE * 0.5, TILE_SIZE * 0.45, 0, TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.25);
+            glowGradient.addColorStop(0, 'rgba(255, 69, 0, 0.8)');
+            glowGradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.4)');
+            glowGradient.addColorStop(1, 'rgba(255, 69, 0, 0)');
+            gCtx.fillStyle = glowGradient;
+            gCtx.fillRect(TILE_SIZE * 0.25, TILE_SIZE * 0.2, TILE_SIZE * 0.5, TILE_SIZE * 0.5);
+            
+            // Flame base
+            gCtx.fillStyle = '#FF4500';
+            gCtx.beginPath();
+            gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.12, 0, Math.PI * 2);
+            gCtx.fill();
+            // Inner flame
+            gCtx.fillStyle = '#FFD700';
+            gCtx.beginPath();
+            gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.45, TILE_SIZE * 0.08, 0, Math.PI * 2);
+            gCtx.fill();
+            // Flame tip
+            gCtx.fillStyle = '#FF6347';
+            gCtx.beginPath();
+            gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.42, TILE_SIZE * 0.06, 0, Math.PI * 2);
+            gCtx.fill();
+            // Small sparkles
+            gCtx.fillStyle = '#FFFFFF';
+            gCtx.beginPath();
+            gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.38, TILE_SIZE * 0.03, 0, Math.PI * 2);
+            gCtx.fill();
+            assets.torchTexture = new Image();
+            assets.torchTexture.src = genCanvas.toDataURL();
+
+            // Bones Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#F5F5DC';
+            gCtx.fillRect(TILE_SIZE * 0.4, TILE_SIZE * 0.3, TILE_SIZE * 0.2, TILE_SIZE * 0.4);
+            gCtx.fillStyle = '#F5F5DC';
+            gCtx.fillRect(TILE_SIZE * 0.35, TILE_SIZE * 0.45, TILE_SIZE * 0.3, TILE_SIZE * 0.1);
+            gCtx.fillStyle = '#F5F5DC';
+            gCtx.fillRect(TILE_SIZE * 0.3, TILE_SIZE * 0.5, TILE_SIZE * 0.4, TILE_SIZE * 0.1);
+            assets.bonesTexture = new Image();
+            assets.bonesTexture.src = genCanvas.toDataURL();
+
+            // Cobweb Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#F5F5DC';
+            gCtx.lineWidth = 1;
+            gCtx.beginPath();
+            gCtx.moveTo(TILE_SIZE * 0.2, TILE_SIZE * 0.2);
+            gCtx.lineTo(TILE_SIZE * 0.8, TILE_SIZE * 0.3);
+            gCtx.moveTo(TILE_SIZE * 0.3, TILE_SIZE * 0.4);
+            gCtx.lineTo(TILE_SIZE * 0.7, TILE_SIZE * 0.5);
+            gCtx.moveTo(TILE_SIZE * 0.4, TILE_SIZE * 0.6);
+            gCtx.lineTo(TILE_SIZE * 0.6, TILE_SIZE * 0.7);
+            gCtx.stroke();
+            assets.cobwebTexture = new Image();
+            assets.cobwebTexture.src = genCanvas.toDataURL();
+
+            // Blood Stain Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#8B0000';
+            gCtx.beginPath();
+            gCtx.ellipse(TILE_SIZE * 0.5, TILE_SIZE * 0.5, TILE_SIZE * 0.25, TILE_SIZE * 0.15, 0, 0, Math.PI * 2);
+            gCtx.fill();
+            gCtx.fillStyle = '#DC143C';
+            gCtx.beginPath();
+            gCtx.ellipse(TILE_SIZE * 0.5, TILE_SIZE * 0.5, TILE_SIZE * 0.15, TILE_SIZE * 0.08, 0, 0, Math.PI * 2);
+            gCtx.fill();
+            assets.bloodStainTexture = new Image();
+            assets.bloodStainTexture.src = genCanvas.toDataURL();
+
+            // Altar Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#2F4F4F';
+            gCtx.fillRect(TILE_SIZE * 0.2, TILE_SIZE * 0.5, TILE_SIZE * 0.6, TILE_SIZE * 0.4);
+            gCtx.fillStyle = '#696969';
+            gCtx.fillRect(TILE_SIZE * 0.15, TILE_SIZE * 0.4, TILE_SIZE * 0.7, TILE_SIZE * 0.1);
+            gCtx.fillStyle = '#FFD700';
+            gCtx.fillRect(TILE_SIZE * 0.4, TILE_SIZE * 0.35, TILE_SIZE * 0.2, TILE_SIZE * 0.1);
+            gCtx.fillStyle = '#FF0000';
+            gCtx.beginPath();
+            gCtx.arc(TILE_SIZE * 0.5, TILE_SIZE * 0.3, TILE_SIZE * 0.08, 0, Math.PI * 2);
+            gCtx.fill();
+            assets.altarTexture = new Image();
+            assets.altarTexture.src = genCanvas.toDataURL();
+
+            // Cage Texture
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#696969';
+            gCtx.lineWidth = 2;
+            gCtx.strokeRect(TILE_SIZE * 0.2, TILE_SIZE * 0.2, TILE_SIZE * 0.6, TILE_SIZE * 0.6);
+            gCtx.beginPath();
+            gCtx.moveTo(TILE_SIZE * 0.2, TILE_SIZE * 0.35);
+            gCtx.lineTo(TILE_SIZE * 0.8, TILE_SIZE * 0.35);
+            gCtx.moveTo(TILE_SIZE * 0.2, TILE_SIZE * 0.5);
+            gCtx.lineTo(TILE_SIZE * 0.8, TILE_SIZE * 0.5);
+            gCtx.moveTo(TILE_SIZE * 0.35, TILE_SIZE * 0.2);
+            gCtx.lineTo(TILE_SIZE * 0.35, TILE_SIZE * 0.8);
+            gCtx.moveTo(TILE_SIZE * 0.5, TILE_SIZE * 0.2);
+            gCtx.lineTo(TILE_SIZE * 0.5, TILE_SIZE * 0.8);
+            gCtx.stroke();
+            assets.cageTexture = new Image();
+            assets.cageTexture.src = genCanvas.toDataURL();
+
+            // Container textures
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#5b4636';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#3d2f24';
+            gCtx.fillRect(6, 15, TILE_SIZE - 12, TILE_SIZE - 30);
+            gCtx.fillStyle = '#222';
+            gCtx.fillRect(TILE_SIZE / 2 - 6, TILE_SIZE / 2 - 2, 12, 4);
+            assets.containerClosed = new Image();
+            assets.containerClosed.src = genCanvas.toDataURL();
+
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#5b4636';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#3d2f24';
+            gCtx.fillRect(6, 15, TILE_SIZE - 12, TILE_SIZE - 30);
+            gCtx.fillStyle = '#3d2f24';
+            gCtx.fillRect(6, 10, TILE_SIZE - 12, 6);
+            gCtx.fillStyle = '#222';
+            gCtx.fillRect(TILE_SIZE / 2 - 6, TILE_SIZE / 2 - 1, 12, 3);
+            assets.containerOpen = new Image();
+            assets.containerOpen.src = genCanvas.toDataURL();
+
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#8B4513';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#654321';
+            gCtx.lineWidth = 1;
+            for (let i = 0; i < TILE_SIZE; i += 8) {
+                gCtx.beginPath();
+                gCtx.moveTo(i, 0);
+                gCtx.lineTo(i, TILE_SIZE);
+                gCtx.stroke();
+            }
+            for (let i = 0; i < TILE_SIZE; i += 8) {
+                gCtx.beginPath();
+                gCtx.moveTo(0, i);
+                gCtx.lineTo(TILE_SIZE, i);
+                gCtx.stroke();
+            }
+            assets.containerCrate = new Image();
+            assets.containerCrate.src = genCanvas.toDataURL();
+
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#8B4513';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#654321';
+            gCtx.lineWidth = 2;
+            gCtx.strokeRect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            gCtx.beginPath();
+            gCtx.moveTo(TILE_SIZE / 2, 2);
+            gCtx.lineTo(TILE_SIZE / 2, TILE_SIZE - 2);
+            gCtx.stroke();
+            gCtx.fillStyle = '#FFD700';
+            gCtx.fillRect(TILE_SIZE / 2 + 4, TILE_SIZE / 2 - 2, 3, 4);
+            assets.containerCabinet = new Image();
+            assets.containerCabinet.src = genCanvas.toDataURL();
+
+            gCtx.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.fillStyle = '#8B4513';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            gCtx.strokeStyle = '#654321';
+            gCtx.lineWidth = 1;
+            gCtx.strokeRect(2, 2, TILE_SIZE - 4, TILE_SIZE - 4);
+            for (let i = 0; i < 3; i++) {
+                const y = 4 + (i * (TILE_SIZE - 8) / 3);
+                gCtx.beginPath();
+                gCtx.moveTo(2, y);
+                gCtx.lineTo(TILE_SIZE - 2, y);
+                gCtx.stroke();
+            }
+            for (let i = 0; i < 3; i++) {
+                const y = 6 + (i * (TILE_SIZE - 8) / 3);
+                gCtx.fillStyle = '#FFD700';
+                gCtx.fillRect(TILE_SIZE / 2 - 2, y, 4, 2);
+            }
+            assets.containerDrawer = new Image();
+            assets.containerDrawer.src = genCanvas.toDataURL();
+
+            console.log('Textures generated successfully');
+            
+            // Verify texture loading
+            Object.keys(assets).forEach(key => {
+                if (assets[key] && assets[key].src) {
+                    console.log(`Texture loaded: ${key}`);
+                } else {
+                    console.warn(`Texture failed to load: ${key}`);
+                }
+            });
+        } catch (error) {
+            console.error('Error generating textures:', error);
+            // Create fallback textures if generation fails
+            createFallbackTextures();
+        }
+
+        // Create fallback textures if main generation fails
+        function createFallbackTextures() {
+            console.log('Creating fallback textures...');
+            
+            const TILE_SIZE = 64;
+            const genCanvas = document.createElement('canvas');
+            genCanvas.width = TILE_SIZE;
+            genCanvas.height = TILE_SIZE;
+            const gCtx = genCanvas.getContext('2d');
+            
+            // Simple fallback textures
+            gCtx.fillStyle = '#4a4a4a';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            assets.wallTexture = new Image();
+            assets.wallTexture.src = genCanvas.toDataURL();
+            
+            gCtx.fillStyle = '#5a3b1f';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            assets.doorTexture = new Image();
+            assets.doorTexture.src = genCanvas.toDataURL();
+            
+            gCtx.fillStyle = '#3a2d1d';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            assets.closetTexture = new Image();
+            assets.closetTexture.src = genCanvas.toDataURL();
+            
+            gCtx.fillStyle = '#FF6600';
+            gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+            assets.torchTexture = new Image();
+            assets.torchTexture.src = genCanvas.toDataURL();
+            
+            console.log('Fallback textures created');
+        }
+
         // Movement controls
         let moveState = {
             forward: false,
@@ -612,15 +930,22 @@
         function initGame() {
             console.log('initGame called');
             try {
-                console.log('Initializing Three.js...');
-                initThreeJS();
-                console.log('Creating camp...');
-                createCamp();
-                console.log('Showing camp...');
-                showCamp();
-                console.log('Updating HUD...');
-                updateHUD();
-                console.log('Game initialization complete');
+                console.log('Generating textures...');
+                generateAssets();
+                
+                // Wait for textures to load before proceeding
+                waitForTextures(() => {
+                    console.log('All textures loaded, proceeding with game initialization...');
+                    console.log('Initializing Three.js...');
+                    initThreeJS();
+                    console.log('Creating camp...');
+                    createCamp();
+                    console.log('Showing camp...');
+                    showCamp();
+                    console.log('Updating HUD...');
+                    updateHUD();
+                    console.log('Game initialization complete');
+                });
             } catch (error) {
                 console.error('Error in initGame:', error);
                 alert('Error initializing game: ' + error.message);
@@ -1739,6 +2064,12 @@
             // Add door from center room to north corridor (CRITICAL - player escape route)
             createDoor(0, -4, 'horizontal', dungeonSize);  // Center room north exit
             
+            // Add closets to dungeon rooms
+            addClosetsToDungeon();
+            
+            // Add atmospheric decorations
+            addAtmosphericDecorations();
+            
             console.log('Dungeon layout created with', roomCount, 'rooms (no overlap)');
         }
         
@@ -1746,7 +2077,7 @@
             const corridorWidth = 4;
             const corridorLength = 10;
             
-            // Create detailed corridor floor
+            // Create detailed corridor floor with stone texture
             let floorGeometry;
             if (direction === 'horizontal') {
                 floorGeometry = new THREE.PlaneGeometry(corridorLength, corridorWidth, 6, 4);
@@ -1754,7 +2085,46 @@
                 floorGeometry = new THREE.PlaneGeometry(corridorWidth, corridorLength, 4, 6);
             }
             
+            // Create stone floor texture
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw stone floor pattern
+            ctx.fillStyle = '#2F2F2F';
+            ctx.fillRect(0, 0, 64, 64);
+            ctx.strokeStyle = '#1A1A1A';
+            ctx.lineWidth = 1;
+            
+            // Add stone tile lines
+            for (let i = 0; i < 64; i += 16) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, 64);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(64, i);
+                ctx.stroke();
+            }
+            
+            // Add some stone texture variation
+            for (let i = 0; i < 8; i++) {
+                const x = Math.random() * 64;
+                const y = Math.random() * 64;
+                const size = 2 + Math.random() * 4;
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.1 + Math.random() * 0.1})`;
+                ctx.fillRect(x, y, size, size);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(corridorLength / 2, corridorWidth / 2);
+            
             const floorMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
                 color: 0x2F2F2F
             });
             
@@ -1835,7 +2205,31 @@
             if (direction === 'horizontal') {
                 // Create detailed wooden door for horizontal corridors
                 const doorGeometry = new THREE.BoxGeometry(doorDepth, doorHeight, doorWidth);
-                            const doorMaterial = new THREE.MeshLambertMaterial({ 
+                
+                // Create canvas texture for door
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw door texture
+                if (assets.doorTexture) {
+                    ctx.drawImage(assets.doorTexture, 0, 0, 64, 64);
+                } else {
+                    // Fallback if texture not loaded
+                    ctx.fillStyle = '#5a3b1f';
+                    ctx.fillRect(0, 0, 64, 64);
+                    ctx.strokeStyle = '#b87333';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(4, 4, 56, 56);
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                
+                const doorMaterial = new THREE.MeshLambertMaterial({ 
+                    map: texture,
                     color: 0x8B4513
                 });
                 const door = new THREE.Mesh(doorGeometry, doorMaterial);
@@ -1869,7 +2263,31 @@
             } else {
                 // Create detailed wooden door for vertical corridors
                 const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth);
+                
+                // Create canvas texture for door
+                const canvas = document.createElement('canvas');
+                canvas.width = 64;
+                canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                
+                // Draw door texture
+                if (assets.doorTexture) {
+                    ctx.drawImage(assets.doorTexture, 0, 0, 64, 64);
+                } else {
+                    // Fallback if texture not loaded
+                    ctx.fillStyle = '#5a3b1f';
+                    ctx.fillRect(0, 0, 64, 64);
+                    ctx.strokeStyle = '#b87333';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(4, 4, 56, 56);
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.ClampToEdgeWrapping;
+                texture.wrapT = THREE.ClampToEdgeWrapping;
+                
                 const doorMaterial = new THREE.MeshLambertMaterial({ 
+                    map: texture,
                     color: 0x8B4513
                 });
                 const door = new THREE.Mesh(doorGeometry, doorMaterial);
@@ -2246,9 +2664,38 @@
         function createDetailedWall(width, height, thickness, color) {
             const wallGroup = new THREE.Group();
             
-            // Main wall structure
+            // Create canvas texture for wall
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw wall texture
+            if (assets.wallTexture) {
+                ctx.drawImage(assets.wallTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.fillStyle = '#4a4a4a';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 64; i += 16) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(64, i);
+                    ctx.stroke();
+                }
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(width / 2, height / 2); // Scale texture to wall size
+            
+            // Main wall structure with texture
             const wallGeometry = new THREE.BoxGeometry(width, height, thickness, 4, 4, 1);
             const wallMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
                 color: color
             });
             const wall = new THREE.Mesh(wallGeometry, wallMaterial);
@@ -2256,12 +2703,12 @@
             wall.receiveShadow = true;
             wallGroup.add(wall);
             
-            // Add stone brick pattern (simplified)
+            // Add stone brick pattern overlay for extra detail
             const brickGeometry = new THREE.PlaneGeometry(width - 0.2, height - 0.2, 8, 8);
             const brickMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0x3A3A3A,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0.2
             });
             const brickPattern = new THREE.Mesh(brickGeometry, brickMaterial);
             brickPattern.position.z = thickness/2 + 0.01;
@@ -2388,26 +2835,52 @@
         function createAtmosphericTorch() {
             const torchGroup = new THREE.Group();
             
-            // Torch handle with wood grain
+            // Create canvas texture for torch
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw torch texture
+            if (assets.torchTexture) {
+                ctx.drawImage(assets.torchTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(24, 32, 16, 48);
+                ctx.fillStyle = '#FF6600';
+                ctx.beginPath();
+                ctx.arc(32, 28, 16, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Torch handle with texture
             const handleGeometry = new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8);
             const handleMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
                 color: 0x8B4513
             });
             const handle = new THREE.Mesh(handleGeometry, handleMaterial);
             handle.position.y = 0.6;
             torchGroup.add(handle);
             
-            // Torch flame with particle effect
+            // Torch flame with enhanced effect
             const flameGeometry = new THREE.SphereGeometry(0.25, 8, 8);
             const flameMaterial = new THREE.MeshLambertMaterial({ 
                 color: 0xFF6600,
-                emissive: 0xFF3300
+                emissive: 0xFF3300,
+                transparent: true,
+                opacity: 0.9
             });
             const flame = new THREE.Mesh(flameGeometry, flameMaterial);
             flame.position.y = 1.3;
             torchGroup.add(flame);
             
-            // Add atmospheric point light (simplified for WebGL compatibility)
+            // Add atmospheric point light with better positioning
             const torchLight = new THREE.PointLight(0xFFAA44, 1.2, 12, 2);
             torchLight.position.y = 1.3;
             torchLight.castShadow = false; // Disable shadows to reduce texture units
@@ -2601,23 +3074,54 @@
         function createTorch() {
             const torchGroup = new THREE.Group();
             
-            // Torch handle
+            // Create canvas texture for torch
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw torch texture
+            if (assets.torchTexture) {
+                ctx.drawImage(assets.torchTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(24, 32, 16, 48);
+                ctx.fillStyle = '#FF6600';
+                ctx.beginPath();
+                ctx.arc(32, 28, 16, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Torch handle with texture
             const handle = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6),
-                new THREE.MeshLambertMaterial({ color: 0x8B4513 })
+                new THREE.MeshLambertMaterial({ 
+                    map: texture,
+                    color: 0x8B4513 
+                })
             );
             handle.position.y = 0.4;
             torchGroup.add(handle);
             
-            // Torch flame
+            // Torch flame with enhanced effect
             const flame = new THREE.Mesh(
                 new THREE.SphereGeometry(0.2, 6, 6),
-                new THREE.MeshLambertMaterial({ color: 0xFF6600, emissive: 0xFF3300 })
+                new THREE.MeshLambertMaterial({ 
+                    color: 0xFF6600, 
+                    emissive: 0xFF3300,
+                    transparent: true,
+                    opacity: 0.9
+                })
             );
             flame.position.y = 0.9;
             torchGroup.add(flame);
             
-            // Add point light
+            // Add point light with better positioning
             const torchLight = new THREE.PointLight(0xFF6600, 0.8, 8);
             torchLight.position.y = 0.9;
             torchGroup.add(torchLight);
@@ -4971,6 +5475,235 @@
             }
             
             return { x, y };
+        }
+
+        // Create closet objects with proper textures
+        function createCloset(x, z, rotation = 0) {
+            const closetGroup = new THREE.Group();
+            
+            // Create canvas texture for closet
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw closet texture
+            if (assets.closetTexture) {
+                ctx.drawImage(assets.closetTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.fillStyle = '#3a2d1d';
+                ctx.fillRect(0, 0, 64, 64);
+                ctx.strokeStyle = '#2c2216';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(32, 0);
+                ctx.lineTo(32, 64);
+                ctx.stroke();
+                ctx.fillStyle = '#111';
+                ctx.fillRect(24, 6, 4, 52);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Closet body
+            const closetGeometry = new THREE.BoxGeometry(1.5, 2.5, 0.8);
+            const closetMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
+                color: 0x3a2d1d
+            });
+            const closetBody = new THREE.Mesh(closetGeometry, closetMaterial);
+            closetBody.position.y = 1.25;
+            closetGroup.add(closetBody);
+            
+            // Closet door (slightly open for detail)
+            const doorGeometry = new THREE.BoxGeometry(0.05, 2.4, 0.75);
+            const doorMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x2c2216
+            });
+            const closetDoor = new THREE.Mesh(doorGeometry, doorMaterial);
+            closetDoor.position.set(0.4, 1.25, 0);
+            closetDoor.rotation.y = Math.PI / 6; // Slightly open
+            closetGroup.add(closetDoor);
+            
+            // Add closet handle
+            const handleGeometry = new THREE.SphereGeometry(0.05, 8, 8);
+            const handleMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0xFFD700
+            });
+            const handle = new THREE.Mesh(handleGeometry, handleMaterial);
+            handle.position.set(0.45, 1.25, 0);
+            closetGroup.add(handle);
+            
+            closetGroup.position.set(x, 0, z);
+            closetGroup.rotation.y = rotation;
+            
+            return closetGroup;
+        }
+
+        // Add closets to dungeon rooms
+        function addClosetsToDungeon() {
+            // Add closets to side rooms
+            const closetPositions = [
+                { x: -16, z: 0, rotation: 0 },      // Left room
+                { x: 16, z: 0, rotation: Math.PI }, // Right room
+                { x: 0, z: -16, rotation: Math.PI/2 }, // Back room
+                { x: 0, z: 16, rotation: -Math.PI/2 }  // Front room
+            ];
+            
+            closetPositions.forEach((pos, index) => {
+                if (index < 4) { // Only add to existing rooms
+                    const closet = createCloset(pos.x, pos.z, pos.rotation);
+                    dungeon.add(closet);
+                    
+                    // Add closet light for atmosphere
+                    const closetLight = new THREE.PointLight(0x444444, 0.3, 3);
+                    closetLight.position.set(pos.x, 1, pos.z);
+                    closetGroup.add(closetLight);
+                }
+            });
+            
+            console.log('Added closets to dungeon rooms');
+        }
+
+        // Add atmospheric decorative elements
+        function addAtmosphericDecorations() {
+            // Add bones scattered around
+            const bonePositions = [
+                { x: -12, z: -2, rotation: Math.random() * Math.PI * 2 },
+                { x: 12, z: 2, rotation: Math.random() * Math.PI * 2 },
+                { x: -2, z: -12, rotation: Math.random() * Math.PI * 2 },
+                { x: 2, z: 12, rotation: Math.random() * Math.PI * 2 }
+            ];
+            
+            bonePositions.forEach(pos => {
+                const bones = createBones(pos.x, pos.z, pos.rotation);
+                dungeon.add(bones);
+            });
+            
+            // Add cobwebs in corners
+            const cobwebPositions = [
+                { x: -14, z: -14, rotation: 0 },
+                { x: 14, z: -14, rotation: Math.PI / 2 },
+                { x: 14, z: 14, rotation: Math.PI },
+                { x: -14, z: 14, rotation: -Math.PI / 2 }
+            ];
+            
+            cobwebPositions.forEach(pos => {
+                const cobweb = createCobweb(pos.x, pos.z, pos.rotation);
+                dungeon.add(cobweb);
+            });
+            
+            console.log('Added atmospheric decorations');
+        }
+
+        // Create bones decoration
+        function createBones(x, z, rotation = 0) {
+            const bonesGroup = new THREE.Group();
+            
+            // Create canvas texture for bones
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw bones texture
+            if (assets.bonesTexture) {
+                ctx.drawImage(assets.bonesTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.fillStyle = '#F5F5DC';
+                ctx.fillRect(24, 20, 16, 24);
+                ctx.fillRect(20, 36, 24, 8);
+                ctx.fillRect(16, 40, 32, 8);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Create bones geometry
+            const bonesGeometry = new THREE.PlaneGeometry(1, 1);
+            const bonesMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
+                transparent: true,
+                alphaTest: 0.5
+            });
+            const bones = new THREE.Mesh(bonesGeometry, bonesMaterial);
+            bones.rotation.x = -Math.PI / 2;
+            bones.position.y = 0.01;
+            bonesGroup.add(bones);
+            
+            bonesGroup.position.set(x, 0, z);
+            bonesGroup.rotation.y = rotation;
+            
+            return bonesGroup;
+        }
+
+        // Create cobweb decoration
+        function createCobweb(x, z, rotation = 0) {
+            const cobwebGroup = new THREE.Group();
+            
+            // Create canvas texture for cobweb
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            
+            // Draw cobweb texture
+            if (assets.cobwebTexture) {
+                ctx.drawImage(assets.cobwebTexture, 0, 0, 64, 64);
+            } else {
+                // Fallback if texture not loaded
+                ctx.strokeStyle = '#F5F5DC';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(12, 12);
+                ctx.lineTo(52, 20);
+                ctx.moveTo(20, 24);
+                ctx.lineTo(44, 32);
+                ctx.moveTo(16, 36);
+                ctx.lineTo(48, 44);
+                ctx.stroke();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            
+            // Create cobweb geometry
+            const cobwebGeometry = new THREE.PlaneGeometry(2, 2);
+            const cobwebMaterial = new THREE.MeshLambertMaterial({ 
+                map: texture,
+                transparent: true,
+                alphaTest: 0.3
+            });
+            const cobweb = new THREE.Mesh(cobwebGeometry, cobwebMaterial);
+            cobweb.position.y = 4;
+            cobwebGroup.add(cobweb);
+            
+            cobwebGroup.position.set(x, 0, z);
+            cobwebGroup.rotation.y = rotation;
+            
+            return cobwebGroup;
+        }
+
+        // Check if all textures are loaded
+        function areTexturesReady() {
+            return Object.values(assets).every(texture => 
+                texture && texture.src && texture.complete
+            );
+        }
+
+        // Wait for textures to load before proceeding
+        function waitForTextures(callback) {
+            if (areTexturesReady()) {
+                callback();
+            } else {
+                setTimeout(() => waitForTextures(callback), 100);
+            }
         }
 
         // Initialize game when page loads
