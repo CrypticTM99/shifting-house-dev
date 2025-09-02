@@ -114,19 +114,75 @@
         /* --- HUD & Popup --- */
         #hud {
             position: absolute;
-            top: 12px;
-            left: 12px;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* Top Left - Floor Debug Info */
+        #hud-debug {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #ddd;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 12px;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
+        /* Top Right - Flashlight Status */
+        #hud-flashlight {
+            position: absolute;
+            top: 10px;
+            right: 10px;
             color: #ddd;
             background: rgba(0,0,0,0.35);
             border: 1px solid rgba(255,255,255,0.15);
             border-radius: 6px;
             padding: 8px 10px;
             font-size: 14px;
-            pointer-events: none;
-            z-index: 100;
+            text-align: right;
+            min-width: 120px;
+        }
+        
+        /* Center Left - Main Game Info */
+        #hud-main {
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            transform: translateY(-50%);
+            color: #ddd;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
             max-width: 200px;
             word-wrap: break-word;
         }
+        
+        /* Bottom Left - Health and Sanity */
+        #hud-health {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: #ddd;
+            background: rgba(0,0,0,0.35);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
         #hud .bar {
             width: 160px;
             height: 8px;
@@ -284,24 +340,43 @@
             </div>
         </div>
         <div id="hud" style="display:none">
-            <div>Stage: <span id="hud-stage">1</span> | Floor: <span id="hud-floor">1</span></div>
-            <div>Time: <span id="hud-time">0:00.000</span></div>
-            <div>Bronze: <span id="hud-bronze">0</span> | Gold: <span id="hud-gold">No</span></div>
-            <div class="affix">Affix: <span id="hud-affix">None</span></div>
-            <div class="bar"><div id="stamina-fill" style="width:100%"></div></div>
-            <div class="bar" style="margin-top:4px;"><div id="sanity-fill" style="width:100%;background:#8B0000;"></div></div>
-            <div id="exit-compass" style="margin-top:6px;color:#aaa;">Exit: ?</div>
-            <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
-            <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
-            <div id="grace-period-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">- Enemies can't hear you</div>
-            <div id="enemy-spawn-indicator" style="margin-top:6px;color:#ffaa00;font-size:12px;display:none;">⚠️ Enemy spawning...</div>
-            <div id="shift-timer" style="margin-top:6px;color:#ffaa00;font-size:12px;">Next shift: --</div>
-            <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
-            <div id="dpi-info" style="margin-top:6px;color:#aaa;font-size:12px;display:none;">Mouse: Detecting DPI...</div>
-            <div style="margin-top:6px;color:#aaa;font-size:12px;">Floor: <span id="hud-floor">1</span> | F: Flashlight <span id="hud-flash">Off</span> | Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
-            <div style="margin-top:6px;color:#aaa;font-size:12px;">Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span> | C: Crouch | Sanity: <span id="hud-sanity">100</span></div>
-            <div id="rush-warning" style="margin-top:6px;color:#ff4444;font-size:14px;font-weight:bold;display:none;">⚠️ RUSH! HIDE NOW!</div>
-            <div id="panic-button-indicator" style="margin-top:6px;color:#ff0000;font-size:14px;font-weight:bold;display:none;">🚨 PRESS P FOR PANIC MODE!</div>
+            <!-- Top Left - Floor Debug Info -->
+            <div id="hud-debug">
+                <div>Floor: <span id="hud-floor">1</span></div>
+                <div>F: Flashlight <span id="hud-flash">Off</span></div>
+                <div>Vits: <span id="hud-vits">0</span> | Picks: <span id="hud-picks">0</span></div>
+                <div>Q: Smoke <span id="hud-smoke">0</span> | Z: Noise <span id="hud-noise">0</span></div>
+                <div id="dpi-info" style="margin-top:6px;color:#aaa;font-size:12px;display:none;">Mouse: Detecting DPI...</div>
+            </div>
+            
+            <!-- Top Right - Flashlight Status -->
+            <div id="hud-flashlight">
+                <div>🔦 Flashlight</div>
+                <div id="flashlight-status">Not Found</div>
+            </div>
+            
+            <!-- Center Left - Main Game Info -->
+            <div id="hud-main">
+                <div>Stage: <span id="hud-stage">1</span></div>
+                <div>Time: <span id="hud-time">0:00.000</span></div>
+                <div>Bronze: <span id="hud-bronze">0</span> | Gold: <span id="hud-gold">No</span></div>
+                <div class="affix">Affix: <span id="hud-affix">None</span></div>
+                <div id="exit-compass" style="margin-top:6px;color:#aaa;">Exit: ?</div>
+                <div id="shift-timer" style="margin-top:6px;color:#ffaa00;font-size:12px;">Next shift: --</div>
+                <div id="pause-indicator" style="margin-top:6px;color:#ffaa00;font-size:14px;font-weight:bold;display:none;">⏸️ PAUSED</div>
+                <div id="enemy-spawn-indicator" style="margin-top:6px;color:#ffaa00;font-size:12px;display:none;">⚠️ Enemy spawning...</div>
+                <div id="rush-warning" style="margin-top:6px;color:#ff4444;font-size:14px;font-weight:bold;display:none;">⚠️ RUSH! HIDE NOW!</div>
+                <div id="panic-button-indicator" style="margin-top:6px;color:#ff0000;font-size:14px;font-weight:bold;display:none;">🚨 PRESS P FOR PANIC MODE!</div>
+            </div>
+            
+            <!-- Bottom Left - Health and Sanity -->
+            <div id="hud-health">
+                <div class="bar"><div id="stamina-fill" style="width:100%"></div></div>
+                <div class="bar" style="margin-top:4px;"><div id="sanity-fill" style="width:100%;background:#8B0000;"></div></div>
+                <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
+                <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
+                <div id="grace-period-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">- Enemies can't hear you</div>
+            </div>
         </div>
         </div>
         <div id="popup"></div>
@@ -378,6 +453,7 @@ const hudPicks = document.getElementById('hud-picks');
 const hudSmoke = document.getElementById('hud-smoke');
 const hudNoise = document.getElementById('hud-noise');
 const hudSanity = document.getElementById('hud-sanity');
+const flashlightStatus = document.getElementById('flashlight-status');
 const rushWarning = document.getElementById('rush-warning');
 const panicButtonIndicator = document.getElementById('panic-button-indicator');
 const hiddenIndicator = document.getElementById('hidden-indicator');
@@ -397,9 +473,9 @@ let currentGameState = GAME_STATE.MENU;
 
 // --- CONSTANTS & SETTINGS ---
 const MAP_SIZE = 21;
-const MOVE_SPEED = 0.032; // Increased player speed
+const MOVE_SPEED = 0.028; // Balanced player speed for better gameplay
 const ROTATION_SPEED = 0.0015; // Reduced rotation sensitivity for smoother feel
-const BASE_ENEMY_SPEED = 0.018; // Reduced base enemy speed
+const BASE_ENEMY_SPEED = 0.016; // Balanced enemy speed for fair challenge
 
 // DPI detection and adjustment
 let mouseDPI = 800; // Default DPI assumption
@@ -568,38 +644,78 @@ function generateAssets() {
     genCanvas.width = TILE_SIZE; genCanvas.height = TILE_SIZE;
     const gCtx = genCanvas.getContext('2d');
 
-    // Wall Texture
-    gCtx.fillStyle = '#4a4a4a'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-    gCtx.strokeStyle = '#333'; gCtx.lineWidth = 2;
-    for (let i = 0; i < TILE_SIZE; i += 16) {
-        gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
-        for (let j = 0; j < TILE_SIZE; j += 32) {
-            let offset = (i / 16) % 2 === 0 ? 0 : 16;
-            gCtx.beginPath(); gCtx.moveTo(j + offset, i); gCtx.lineTo(j + offset, i + 16); gCtx.stroke();
+    // Wall Texture - Improved with better brick pattern
+    gCtx.fillStyle = '#3a3a3a'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    
+    // Add subtle noise texture
+    for (let x = 0; x < TILE_SIZE; x += 2) {
+        for (let y = 0; y < TILE_SIZE; y += 2) {
+            const noise = Math.random() * 0.1;
+            gCtx.fillStyle = `rgba(58, 58, 58, ${noise})`;
+            gCtx.fillRect(x, y, 2, 2);
         }
     }
+    
+    // Brick pattern with consistent spacing
+    gCtx.strokeStyle = '#2a2a2a'; gCtx.lineWidth = 1;
+    for (let i = 0; i < TILE_SIZE; i += 12) {
+        gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
+    }
+    for (let j = 0; j < TILE_SIZE; j += 24) {
+        let offset = (Math.floor(j / 12) % 2 === 0) ? 0 : 12;
+        gCtx.beginPath(); gCtx.moveTo(j + offset, 0); gCtx.lineTo(j + offset, TILE_SIZE); gCtx.stroke();
+    }
+    
+    // Add subtle highlights
+    gCtx.strokeStyle = '#4a4a4a'; gCtx.lineWidth = 0.5;
+    for (let i = 0; i < TILE_SIZE; i += 12) {
+        gCtx.beginPath(); gCtx.moveTo(0, i + 1); gCtx.lineTo(TILE_SIZE, i + 1); gCtx.stroke();
+    }
+    
     assets.wallTexture = new Image(); assets.wallTexture.src = genCanvas.toDataURL();
 
-    // Mansion Wall Texture (for stages 5+)
+    // Mansion Wall Texture (for stages 5+) - Enhanced wood paneling
     gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
     gCtx.fillStyle = '#8B7355'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    
+    // Add wood grain texture
+    for (let x = 0; x < TILE_SIZE; x += 1) {
+        for (let y = 0; y < TILE_SIZE; y += 1) {
+            const grain = Math.sin(x * 0.3) * Math.cos(y * 0.1) * 0.05;
+            gCtx.fillStyle = `rgba(139, 115, 85, ${0.1 + grain})`;
+            gCtx.fillRect(x, y, 1, 1);
+        }
+    }
+    
+    // Elegant paneling with consistent spacing
     gCtx.strokeStyle = '#654321'; gCtx.lineWidth = 1;
-    // Add elegant paneling
     for (let i = 0; i < TILE_SIZE; i += 16) {
         gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
     }
     for (let j = 0; j < TILE_SIZE; j += 16) {
         gCtx.beginPath(); gCtx.moveTo(j, 0); gCtx.lineTo(j, TILE_SIZE); gCtx.stroke();
     }
+    
+    // Add subtle wood highlights
+    gCtx.strokeStyle = '#A0522D'; gCtx.lineWidth = 0.5;
+    for (let i = 0; i < TILE_SIZE; i += 16) {
+        gCtx.beginPath(); gCtx.moveTo(0, i + 1); gCtx.lineTo(TILE_SIZE, i + 1); gCtx.stroke();
+    }
+    for (let j = 0; j < TILE_SIZE; j += 16) {
+        gCtx.beginPath(); gCtx.moveTo(j + 1, 0); gCtx.lineTo(j + 1, TILE_SIZE); gCtx.stroke();
+    }
+    
     // Add decorative corners
     gCtx.fillStyle = '#654321';
-    gCtx.fillRect(0, 0, 8, 8);
-    gCtx.fillRect(TILE_SIZE-8, 0, 8, 8);
-    gCtx.fillRect(0, TILE_SIZE-8, 8, 8);
-    gCtx.fillRect(TILE_SIZE-8, TILE_SIZE-8, 8, 8);
+    gCtx.fillRect(0, 0, 6, 6);
+    gCtx.fillRect(TILE_SIZE-6, 0, 6, 6);
+    gCtx.fillRect(0, TILE_SIZE-6, 6, 6);
+    gCtx.fillRect(TILE_SIZE-6, TILE_SIZE-6, 6, 6);
+    
     // Add center decorative element
     gCtx.fillStyle = '#A0522D';
-    gCtx.fillRect(TILE_SIZE/2-4, TILE_SIZE/2-4, 8, 8);
+    gCtx.fillRect(TILE_SIZE/2-3, TILE_SIZE/2-3, 6, 6);
+    
     assets.mansionWallTexture = new Image(); assets.mansionWallTexture.src = genCanvas.toDataURL();
 
     // Bronze Key Sprite - Redesigned to look like a proper key, not a spoon
@@ -899,6 +1015,91 @@ audioCues.enabled = settings.audioCues;
 let inventory = { flashlight: false, vitamins: 0, lockpick: 0, vitActiveUntil: 0, smokeBomb: 0, noiseMaker: 0 };
 let rushEvent = { active: false, startTime: 0, duration: 8000, cooldown: 30000, lastTrigger: 0 };
 let stalkerEnemy = null;
+
+// Monster system - different monsters every 5 stages
+function getMonsterTypesForStage(stage) {
+    const monsterSets = [
+        // Stages 1-5: Basic monsters
+        ['hunter', 'ambusher', 'patrol'],
+        // Stages 6-10: Add stalker
+        ['hunter', 'ambusher', 'patrol', 'stalker'],
+        // Stages 11-15: Add shadow
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow'],
+        // Stages 16-20: Add phantom
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom'],
+        // Stages 21+: All monsters
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom', 'nightmare']
+    ];
+    
+    const setIndex = Math.min(Math.floor(stage / 5), monsterSets.length - 1);
+    return monsterSets[setIndex];
+}
+
+function getMonsterStats(monsterType, stage) {
+    const baseStats = {
+        hunter: {
+            speed: currentEnemySpeed * 0.9,
+            hearingRange: 8,
+            memory: 10000,
+            stealth: 0.7,
+            scale: 1.0
+        },
+        ambusher: {
+            speed: currentEnemySpeed,
+            hearingRange: 6,
+            memory: 8000,
+            stealth: 1.0,
+            scale: 0.9
+        },
+        patrol: {
+            speed: currentEnemySpeed,
+            hearingRange: 4,
+            memory: 5000,
+            stealth: 1.0,
+            scale: 0.8
+        },
+        stalker: {
+            speed: currentEnemySpeed * 1.1,
+            hearingRange: 10,
+            memory: 15000,
+            stealth: 0.5,
+            scale: 1.1
+        },
+        shadow: {
+            speed: currentEnemySpeed * 0.8,
+            hearingRange: 12,
+            memory: 20000,
+            stealth: 0.3,
+            scale: 1.2
+        },
+        phantom: {
+            speed: currentEnemySpeed * 1.2,
+            hearingRange: 6,
+            memory: 12000,
+            stealth: 0.6,
+            scale: 1.0
+        },
+        nightmare: {
+            speed: currentEnemySpeed * 1.3,
+            hearingRange: 15,
+            memory: 25000,
+            stealth: 0.2,
+            scale: 1.3
+        }
+    };
+    
+    const stats = baseStats[monsterType] || baseStats.patrol;
+    
+    // Scale stats based on stage
+    const stageMultiplier = 1 + (stage * 0.05);
+    return {
+        speed: stats.speed * stageMultiplier,
+        hearingRange: stats.hearingRange * (1 + stage * 0.02),
+        memory: stats.memory * stageMultiplier,
+        stealth: Math.max(0.1, stats.stealth - stage * 0.01),
+        scale: stats.scale
+    };
+}
 
 // Sanity system
 let sanitySystem = {
@@ -1667,7 +1868,7 @@ function pickAffix() {
 function applyAffix() {
     // Reset to defaults first
     currentShiftInterval = SHIFT_INTERVAL;
-    currentEnemySpeed = BASE_ENEMY_SPEED + stageIndex * 0.0005; // Reduced scaling
+    currentEnemySpeed = BASE_ENEMY_SPEED + stageIndex * 0.0003; // Balanced scaling
     currentPathUpdateInterval = Math.max(400, ENEMY_PATH_UPDATE_INTERVAL - stageIndex * 100);
     player.moveSpeedMultiplier = 1;
     player.keenEye = false;
@@ -2225,8 +2426,11 @@ function resetGame() {
     for (let i = 0; i < count; i++) {
         let enemySpawn = findSafeEnemySpawn(map, spawn);
         if (enemySpawn) {
-            // Create different enemy types
-            let enemyType = prng() < 0.3 ? 'hunter' : prng() < 0.5 ? 'ambusher' : 'patrol';
+            // Get available monster types for current stage
+            const availableMonsters = getMonsterTypesForStage(stageIndex);
+            const enemyType = availableMonsters[Math.floor(prng() * availableMonsters.length)];
+            const stats = getMonsterStats(enemyType, stageIndex);
+            
             let enemy = { 
                 x: enemySpawn.x + 0.5, 
                 y: enemySpawn.y + 0.5, 
@@ -2236,10 +2440,11 @@ function resetGame() {
                 lastSeenPlayer: null,
                 spawnTime: Date.now(),
                 spawnGracePeriod: 5000, // 5 seconds grace period after spawn
-                hearingRange: enemyType === 'hunter' ? 8 : enemyType === 'ambusher' ? 6 : 4,
-                memory: enemyType === 'hunter' ? 10000 : enemyType === 'ambusher' ? 8000 : 5000,
-                speed: enemyType === 'hunter' ? currentEnemySpeed * 0.9 : currentEnemySpeed,
-                stealth: enemyType === 'hunter' ? 0.7 : 1.0,
+                hearingRange: stats.hearingRange,
+                memory: stats.memory,
+                speed: stats.speed,
+                stealth: stats.stealth,
+                scale: stats.scale,
                 currentFloor: currentFloor, // Track which floor this enemy is on
                 patrolTarget: null, // Initialize patrol system
                 patrolRadius: 3 + Math.random() * 2 // Random patrol radius between 3-5 tiles
@@ -2267,7 +2472,7 @@ function resetGame() {
     if (stageIndex >= 1) {
         // Increase difficulty for stages 2+
         currentShiftInterval = Math.max(60000, SHIFT_INTERVAL - (stageIndex * 2000)); // More consistent shifts
-        currentEnemySpeed = BASE_ENEMY_SPEED + (stageIndex * 0.0008); // Much slower enemy scaling
+        currentEnemySpeed = BASE_ENEMY_SPEED + (stageIndex * 0.0004); // Balanced enemy scaling
         currentPathUpdateInterval = Math.max(300, ENEMY_PATH_UPDATE_INTERVAL - (stageIndex * 150)); // More frequent path updates
         console.log(`Stage ${stageIndex + 1} difficulty: shift=${currentShiftInterval}ms, speed=${currentEnemySpeed}, pathUpdate=${currentPathUpdateInterval}ms`);
     } else {
@@ -3472,6 +3677,7 @@ function setupInputs() {
             if (inventory.flashlight) {
                 inventory.flashlight = !inventory.flashlight;
                 if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off';
+        if (flashlightStatus) flashlightStatus.textContent = inventory.flashlight ? 'On' : 'Off';
             }
         });
         
@@ -3514,7 +3720,8 @@ function setupInputs() {
             }
             if (e.key.toLowerCase() === 'f' && inventory.flashlight) { 
                 inventory.flashlight = !inventory.flashlight; 
-                if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off'; 
+                if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off';
+        if (flashlightStatus) flashlightStatus.textContent = inventory.flashlight ? 'On' : 'Off'; 
             }
             if (e.key.toLowerCase() === 'v' && inventory.vitamins > 0) { 
                 inventory.vitamins -= 1; 
@@ -3788,6 +3995,8 @@ function tryInteract() {
                         message.life = 200;
                         playSound('itemPickup', 0.7);
                         if (hudFlash) hudFlash.textContent = 'On';
+                if (flashlightStatus) flashlightStatus.textContent = 'On';
+                        if (flashlightStatus) flashlightStatus.textContent = 'On';
                         break;
                     case 'vitamins':
                         inventory.vitamins += 2;
@@ -4173,7 +4382,10 @@ function useStairs(direction) {
                     for (let i = 0; i < count; i++) {
                         let enemySpawn = findRandomEmptyCell(map);
                         if (enemySpawn) {
-                            let enemyType = prng() < 0.3 ? 'hunter' : prng() < 0.5 ? 'ambusher' : 'patrol';
+                            const availableMonsters = getMonsterTypesForStage(stageIndex);
+                            const enemyType = availableMonsters[Math.floor(prng() * availableMonsters.length)];
+                            const stats = getMonsterStats(enemyType, stageIndex);
+                            
                             enemies.push({ 
                                 x: enemySpawn.x + 0.5, 
                                 y: enemySpawn.y + 0.5, 
@@ -4181,10 +4393,11 @@ function useStairs(direction) {
                                 state: 'PATROL',
                                 type: enemyType,
                                 lastSeenPlayer: null,
-                                hearingRange: enemyType === 'hunter' ? 8 : enemyType === 'ambusher' ? 6 : 4,
-                                memory: enemyType === 'hunter' ? 10000 : enemyType === 'ambusher' ? 8000 : 5000,
-                                speed: enemyType === 'hunter' ? currentEnemySpeed * 1.2 : currentEnemySpeed,
-                                stealth: enemyType === 'hunter' ? 0.7 : 1.0,
+                                hearingRange: stats.hearingRange,
+                                memory: stats.memory,
+                                speed: stats.speed,
+                                stealth: stats.stealth,
+                                scale: stats.scale,
                                 currentFloor: currentFloor // Track which floor this enemy is on
                             });
                         }
@@ -4257,7 +4470,10 @@ function useStairs(direction) {
                     for (let i = 0; i < count; i++) {
                         let enemySpawn = findRandomEmptyCell(map);
                         if (enemySpawn) {
-                            let enemyType = prng() < 0.3 ? 'hunter' : prng() < 0.5 ? 'ambusher' : 'patrol';
+                            const availableMonsters = getMonsterTypesForStage(stageIndex);
+                            const enemyType = availableMonsters[Math.floor(prng() * availableMonsters.length)];
+                            const stats = getMonsterStats(enemyType, stageIndex);
+                            
                             enemies.push({ 
                                 x: enemySpawn.x + 0.5, 
                                 y: enemySpawn.y + 0.5, 
@@ -4265,10 +4481,11 @@ function useStairs(direction) {
                                 state: 'PATROL',
                                 type: enemyType,
                                 lastSeenPlayer: null,
-                                hearingRange: enemyType === 'hunter' ? 8 : enemyType === 'ambusher' ? 6 : 4,
-                                memory: enemyType === 'hunter' ? 10000 : enemyType === 'ambusher' ? 8000 : 5000,
-                                speed: enemyType === 'hunter' ? currentEnemySpeed * 1.2 : currentEnemySpeed,
-                                stealth: enemyType === 'hunter' ? 0.7 : 1.0,
+                                hearingRange: stats.hearingRange,
+                                memory: stats.memory,
+                                speed: stats.speed,
+                                stealth: stats.stealth,
+                                scale: stats.scale,
                                 currentFloor: currentFloor // Track which floor this enemy is on
                             });
                         }
@@ -4474,7 +4691,7 @@ function handleMovement() {
         const vitBoost = (inventory.vitActiveUntil||0) > Date.now() ? 1.1 : 1; // Reduced vitamin boost
         const panicBoost = (player.panicSpeedBoost||0) > Date.now() ? 1.3 : 1; // Panic mode speed boost
         const crouchModifier = playerAbilities.crouching ? 0.8 : 1; // Less severe crouch penalty
-        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.15 : 1) * vitBoost * panicBoost * crouchModifier; // Reduced sprint boost
+        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.12 : 1) * vitBoost * panicBoost * crouchModifier; // Balanced sprint boost
         dx = dx/mag * MOVE_SPEED * speedMul;
         dy = dy/mag * MOVE_SPEED * speedMul;
         // Stamina update
@@ -4557,6 +4774,7 @@ function update() {
                 playSound('itemPickup', 0.7);
                 message.text = "🔦 Flashlight acquired! Press F to toggle."; message.life = 200;
                 if (hudFlash) hudFlash.textContent = 'On';
+                if (flashlightStatus) flashlightStatus.textContent = 'On';
             } else if (sprite.type === 'vitamins') {
                 inventory.vitamins += 2;
                 sprites.splice(i, 1);
@@ -5005,6 +5223,7 @@ function update() {
             }
         }
         if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off';
+        if (flashlightStatus) flashlightStatus.textContent = inventory.flashlight ? 'On' : 'Off';
         if (hudVits) hudVits.textContent = String(inventory.vitamins);
         if (hudPicks) hudPicks.textContent = String(inventory.lockpick);
         if (hudSmoke) hudSmoke.textContent = String(inventory.smokeBomb);
@@ -5341,7 +5560,8 @@ function render() {
     }
     
     let zBuffer = [];
-    for (let i = 0; i < canvas.width; i++) {
+    const rayStep = Math.max(1, Math.floor(canvas.width / 800)); // Adaptive ray step for performance
+    for (let i = 0; i < canvas.width; i += rayStep) {
         const rayAngle = (player.angle - FOV / 2) + (i / canvas.width) * FOV;
         const rayDirX = Math.cos(rayAngle), rayDirY = Math.sin(rayAngle);
         let mapX = Math.floor(player.x), mapY = Math.floor(player.y);
@@ -5364,7 +5584,10 @@ function render() {
         }
         
         let perpWallDist = (side === 0) ? (mapX - player.x + (1 - stepX) / 2) / rayDirX : (mapY - player.y + (1 - stepY) / 2) / rayDirY;
-        zBuffer[i] = perpWallDist;
+        // Fill zBuffer for all pixels in this ray step
+        for (let j = 0; j < rayStep && i + j < canvas.width; j++) {
+            zBuffer[i + j] = perpWallDist;
+        }
 
         const lineHeight = (canvas.height / Math.max(perpWallDist, 0.0001));
         const drawStart = -lineHeight / 2 + canvas.height / 2;
@@ -5396,11 +5619,11 @@ function render() {
                 break;
         }
 
-        ctx.drawImage(texture, texX, 0, 1, 64, i, drawStart, 1, lineHeight);
+        ctx.drawImage(texture, texX, 0, 1, 64, i, drawStart, rayStep, lineHeight);
         
         const darkness = Math.min(Math.max(perpWallDist / 10, 0), 1);
         ctx.fillStyle = `rgba(0,0,0,${darkness})`;
-        ctx.fillRect(i, drawStart, 1, lineHeight);
+        ctx.fillRect(i, drawStart, rayStep, lineHeight);
     }
     
     const enemySprites = enemies.map(e => ({
@@ -5409,31 +5632,19 @@ function render() {
         type: 'enemy', 
         texture: assets.enemySprite,
         inSpawnGrace: e.spawnTime && (Date.now() - e.spawnTime) < e.spawnGracePeriod,
-        floor: e.currentFloor
+        floor: e.currentFloor,
+        scale: e.scale || 1.0
     }));
     
-    // Debug: log enemy floor info
-    if (enemySprites.length > 0) {
-        console.log(`Enemy floors: ${enemySprites.map(e => `Floor ${e.floor}`).join(', ')}`);
-    }
+    // Enemy floor info cached for performance
     const allSprites = [...sprites, ...enemySprites];
     allSprites.forEach(s => s.dist = Math.hypot(s.x-player.x, s.y-player.y));
     allSprites.sort((a,b) => b.dist - a.dist);
     
-    // Only log sprite count occasionally to avoid spam
-    if (Math.random() < 0.01) { // Log 1% of the time
-        console.log("Rendering", allSprites.length, "sprites (", sprites.length, "items +", enemySprites.length, "enemies)");
-    }
-    
-    // Debug: log enemy positions occasionally
-    if (enemySprites.length > 0 && Math.random() < 0.05) { // Log 5% of the time when enemies exist
-        console.log("Enemy positions:", enemySprites.map(e => `(${e.x.toFixed(1)}, ${e.y.toFixed(1)})`));
-    }
+    // Sprite rendering optimized for performance
     for(let sprite of allSprites) {
-        // Only log container sprites occasionally to avoid spam
-        if (sprite.type === 'container' && Math.random() < 0.1) { // Log 10% of the time
-            console.log("Container sprite at", sprite.x, sprite.y, "distance", sprite.dist);
-        }
+        // Distance culling for performance
+        if (sprite.dist > 15) continue; // Skip sprites that are too far away
         let relX = sprite.x - player.x;
         let relY = sprite.y - player.y;
         
@@ -5455,6 +5666,7 @@ function render() {
             if (sprite.type === 'container') scale = 0.35; // Made containers even smaller
             if (sprite.type === 'bronzeKey' || sprite.type === 'goldKey') scale = 0.45; // Keys at requested scale
             if (sprite.type === 'flashlight' || sprite.type === 'vitamins' || sprite.type === 'lockpick') scale = 0.3; // Make items smaller
+            if (sprite.type === 'enemy' && sprite.scale) scale = sprite.scale; // Use monster-specific scale
             const spriteWidth = spriteHeight * scale;
             const drawStartX = spriteScreenX - spriteWidth / 2;
 
@@ -5698,6 +5910,27 @@ function render() {
         }
     }
     
+    // Render flashlight in player's right hand
+    if (inventory.flashlight && currentGameState === GAME_STATE.PLAYING) {
+        const handX = canvas.width - 120; // Right side of screen
+        const handY = canvas.height - 80; // Bottom area
+        const flashlightWidth = 40;
+        const flashlightHeight = 60;
+        
+        // Draw flashlight sprite in player's hand
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.drawImage(assets.flashlightSprite, handX, handY, flashlightWidth, flashlightHeight);
+        
+        // Add subtle glow effect when flashlight is on
+        if (inventory.flashlight) {
+            ctx.shadowColor = 'rgba(255, 255, 200, 0.3)';
+            ctx.shadowBlur = 8;
+            ctx.drawImage(assets.flashlightSprite, handX, handY, flashlightWidth, flashlightHeight);
+        }
+        ctx.restore();
+    }
+
     // Add minimap legend
     ctx.font = '12px Arial';
     ctx.textAlign = 'left';
@@ -5756,9 +5989,20 @@ function render() {
 // =============================================================================
 // --- MAIN GAME LOOP ---
 // =============================================================================
-function gameLoop() {
-    update();
-    render();
+// Frame rate limiting for stable 60 FPS
+let lastFrameTime = 0;
+const targetFPS = 60;
+const frameInterval = 1000 / targetFPS;
+
+function gameLoop(currentTime) {
+    const deltaTime = currentTime - lastFrameTime;
+    
+    if (deltaTime >= frameInterval) {
+        update();
+        render();
+        lastFrameTime = currentTime - (deltaTime % frameInterval);
+    }
+    
     requestAnimationFrame(gameLoop);
 }
 
@@ -5866,6 +6110,7 @@ function updateGamepadState() {
         if (inventory.flashlight) {
             inventory.flashlight = !inventory.flashlight;
             if (hudFlash) hudFlash.textContent = inventory.flashlight ? 'On' : 'Off';
+        if (flashlightStatus) flashlightStatus.textContent = inventory.flashlight ? 'On' : 'Off';
         }
     }
     if (gamepadState.buttons[4] && !gamepadState.lastButtons[4]) { // LB
