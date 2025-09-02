@@ -405,6 +405,7 @@
             <!-- Bottom Left - Health and Sanity -->
             <div id="hud-health">
                 <div class="bar"><div id="stamina-fill" style="width:100%"></div></div>
+                <div class="bar" style="margin-top:4px;"><div id="sprint-stamina-fill" style="width:100%;background:#00ff00;"></div></div>
                 <div class="bar" style="margin-top:4px;"><div id="sanity-fill" style="width:100%;background:#8B0000;"></div></div>
                 <div id="hidden-indicator" style="margin-top:6px;color:#00ff00;font-size:14px;font-weight:bold;display:none;">🕳️ HIDDEN - Press H to exit</div>
                 <div id="crouch-indicator" style="margin-top:6px;color:#478d8d;font-size:14px;font-weight:bold;display:none;">🦆 CROUCHING - Your footsteps are quieter</div>
@@ -459,6 +460,7 @@ const hudBronzeEl = document.getElementById('hud-bronze');
 const hudGoldEl = document.getElementById('hud-gold');
 const hudAffixEl = document.getElementById('hud-affix');
 const staminaFill = document.getElementById('stamina-fill');
+const sprintStaminaFill = document.getElementById('sprint-stamina-fill');
 const sanityFill = document.getElementById('sanity-fill');
 const popupEl = document.getElementById('popup');
 const leaderboardList = document.getElementById('leaderboard-list');
@@ -506,7 +508,7 @@ let currentGameState = GAME_STATE.MENU;
 
 // --- CONSTANTS & SETTINGS ---
 const MAP_SIZE = 21;
-const MOVE_SPEED = 0.038; // Balanced player speed for better gameplay
+const MOVE_SPEED = 0.055; // Increased player speed for better gameplay
 const ROTATION_SPEED = 0.0018; // Reduced rotation sensitivity for smoother feel
 const BASE_ENEMY_SPEED = 0.019; // Balanced enemy speed for fair challenge
 
@@ -2331,30 +2333,28 @@ function generateMultiFloorMaze() {
         }
     }
     
-    // Smart exit placement: ensure exit is always reachable
-    let exitPlaced = false;
+    // Multiple exit placement: place exits on multiple floors for better gameplay
+    let exitsPlaced = 0;
+    const targetExits = Math.min(3, maxFloors); // Place up to 3 exits, one per floor
     
-    // Strategy 1: If we have working stairs, place exit on top floor
-    if (floorConnections.length > 0) {
-        const topFloor = floors[maxFloors - 1];
-        let exitPos = findRandomEmptyCell(topFloor);
+    // Place exits on multiple floors, prioritizing higher floors but ensuring variety
+    for (let floorIndex = 0; floorIndex < maxFloors && exitsPlaced < targetExits; floorIndex++) {
+        const floor = floors[floorIndex];
+        let exitPos = findRandomEmptyCell(floor);
         if (exitPos) {
-            topFloor[exitPos.y][exitPos.x] = 3; // Gold exit door
-            console.log("Placed exit on top floor (stairs available) at", exitPos.x, exitPos.y);
-            exitPlaced = true;
+            floor[exitPos.y][exitPos.x] = 3; // Gold exit door
+            console.log(`Placed exit on floor ${floorIndex} at (${exitPos.x}, ${exitPos.y})`);
+            exitsPlaced++;
         }
     }
     
-    // Strategy 2: If no stairs or stairs failed, place exit on current floor
-    if (!exitPlaced) {
-        console.log("No working stairs found, placing exit on current floor");
+    // Ensure at least one exit is placed
+    if (exitsPlaced === 0) {
+        console.log("No exits placed, placing fallback exit on current floor");
         // We'll place the exit in resetGame() after the current floor is set
-        exitPlaced = true;
     }
     
-    if (!exitPlaced) {
-        console.error("Failed to place exit anywhere");
-    }
+    console.log(`Placed ${exitsPlaced} exits across ${maxFloors} floors`);
 }
 
 function addDungeonObjects(floorMap, floorIndex) {
@@ -2446,7 +2446,7 @@ function resetGame() {
     sprites = [];
     
     let spawn = findSafeSpawnCell();
-    player = { x: spawn.x + 0.5, y: spawn.y + 0.5, angle: prng() * Math.PI * 2, sanity: 100, hasBronzeKey: false, hasGoldKey: false, stamina: 1, moveSpeedMultiplier: 1, keenEye: false, graceMs: 2000, closetEntryTime: null, closetExitTime: null, closetGracePeriod: 3000, lastMovement: 0, currentSpeed: 0, targetSpeed: 0, acceleration: 0.15, maxSpeed: 1.0 };
+    player = { x: spawn.x + 0.5, y: spawn.y + 0.5, angle: prng() * Math.PI * 2, sanity: 100, hasBronzeKey: false, hasGoldKey: false, stamina: 1, moveSpeedMultiplier: 1, keenEye: false, graceMs: 2000, closetEntryTime: null, closetExitTime: null, closetGracePeriod: 3000, lastMovement: 0, currentSpeed: 0, targetSpeed: 0, acceleration: 0.15, maxSpeed: 1.5, sprinting: false, sprintStamina: 1.0, maxSprintStamina: 1.0, sprintDrainRate: 0.02, sprintRecoveryRate: 0.01 };
     
     // Reset player abilities
     playerAbilities.crouching = false;
@@ -2494,7 +2494,7 @@ function resetGame() {
         if (p) sprites.push({ x: p.x + 0.5, y: p.y + 0.5, type: 'noiseMaker', texture: assets.noiseMakerSprite }); 
     }
     
-    // Smart exit placement: check if we need to place exit on current floor
+    // Check if exit exists on current floor (multiple exits system)
     let exitExists = false;
     for (let y = 0; y < MAP_SIZE; y++) {
         for (let x = 0; x < MAP_SIZE; x++) {
@@ -2506,35 +2506,14 @@ function resetGame() {
         if (exitExists) break;
     }
     
-    // If no exit exists on current floor and no stairs available, place exit here
-    if (!exitExists && floorConnections.length === 0) {
+    // If no exit exists on current floor, place one as fallback
+    if (!exitExists) {
         let exitPos = findWellConnectedExitPosition(map);
         if (exitPos) {
             map[exitPos.y][exitPos.x] = 3; // Gold exit door
-            console.log("Placed exit on current floor (no stairs) at", exitPos.x, exitPos.y);
+            console.log("Placed fallback exit on current floor at", exitPos.x, exitPos.y);
         } else {
-            console.error("Failed to place exit on current floor");
-        }
-    }
-    
-    // Additional safety: if we have stairs but no working connections, ensure exit is reachable
-    if (!exitExists && floorConnections.length > 0) {
-        // Check if any of the floor connections actually work
-        let workingStairs = false;
-        for (let conn of floorConnections) {
-            if (conn.floor === currentFloor && (conn.upX !== undefined || conn.downX !== undefined)) {
-                workingStairs = true;
-                break;
-            }
-        }
-        
-        if (!workingStairs) {
-            console.log("Stairs exist but connections are broken, placing exit on current floor");
-            let exitPos = findWellConnectedExitPosition(map);
-            if (exitPos) {
-                map[exitPos.y][exitPos.x] = 3; // Gold exit door
-                console.log("Placed fallback exit on current floor at", exitPos.x, exitPos.y);
-            }
+            console.error("Failed to place fallback exit on current floor");
         }
     }
     // Place some bronze doors
@@ -4135,7 +4114,7 @@ function setupInputs() {
             
             for (let touch of e.changedTouches) {
                 if (touch.clientX < window.innerWidth / 2) {
-                    touchState.move = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY, currentX: touch.clientX, currentY: touch.clientY };
+                    touchState.move = { id: touch.identifier, startX: touch.clientX, startY: touch.clientY, currentX: touch.clientX, currentY: touch.clientY, moveStartTime: Date.now() };
                 } else {
                     touchState.look = { id: touch.identifier, lastX: touch.clientX };
                 }
@@ -5292,18 +5271,17 @@ function handleMovement() {
 
     let mag = Math.sqrt(dx*dx + dy*dy);
     if(mag > 0) {
-        // Sprint mechanics
-        const sprinting = !!keys['shift'] && player.stamina > 0.1;
+        // Apply speed modifiers
         const vitBoost = (inventory.vitActiveUntil||0) > Date.now() ? 1.1 : 1; // Reduced vitamin boost
         const panicBoost = (player.panicSpeedBoost||0) > Date.now() ? 1.3 : 1; // Panic mode speed boost
         const crouchModifier = playerAbilities.crouching ? 0.8 : 1; // Less severe crouch penalty
-        const speedMul = (player.moveSpeedMultiplier || 1) * (sprinting ? 1.12 : 1) * vitBoost * panicBoost * crouchModifier; // Balanced sprint boost
+        const speedMul = (player.moveSpeedMultiplier || 1) * vitBoost * panicBoost * crouchModifier;
         
-        // Set target speed based on movement input
-        player.targetSpeed = Math.min(1.0, speedMul * 0.8); // Cap at jog pace (80% of max)
+        // Set target speed based on movement input and sprint state
+        player.targetSpeed = Math.min(player.maxSpeed, speedMul);
         
-        // Stamina update
-        if (sprinting) player.stamina = Math.max(0, player.stamina - 0.005);
+        // Update regular stamina (for other systems)
+        if (player.sprinting) player.stamina = Math.max(0, player.stamina - 0.005);
         else player.stamina = Math.min(1, player.stamina + 0.0035);
     } else {
         // No movement input - gradually slow down
@@ -5343,6 +5321,46 @@ function handleMovement() {
     }
 }
 
+function updateSprintSystem() {
+    if (currentGameState !== GAME_STATE.PLAYING) return;
+    
+    // Check if player is moving
+    const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'] || 
+                    (gamepad && (gamepadState.leftStick.x !== 0 || gamepadState.leftStick.y !== 0)) ||
+                    (isMobile && touchState.move);
+    
+    // Desktop: Check for Shift key sprint
+    if (!isMobile && keys['shift'] && isMoving && player.sprintStamina > 0) {
+        player.sprinting = true;
+        player.sprintStamina = Math.max(0, player.sprintStamina - player.sprintDrainRate);
+    } else {
+        player.sprinting = false;
+    }
+    
+    // Mobile: Automatic sprint when holding forward for extended time
+    if (isMobile && isMoving && touchState.move) {
+        const moveTime = Date.now() - (touchState.moveStartTime || Date.now());
+        if (moveTime > 2000 && player.sprintStamina > 0) { // Sprint after 2 seconds of movement
+            player.sprinting = true;
+            player.sprintStamina = Math.max(0, player.sprintStamina - player.sprintDrainRate * 0.5); // Slower drain on mobile
+        } else {
+            player.sprinting = false;
+        }
+    }
+    
+    // Recover sprint stamina when not sprinting
+    if (!player.sprinting && player.sprintStamina < player.maxSprintStamina) {
+        player.sprintStamina = Math.min(player.maxSprintStamina, player.sprintStamina + player.sprintRecoveryRate);
+    }
+    
+    // Update move speed multiplier based on sprint state
+    if (player.sprinting) {
+        player.moveSpeedMultiplier = 1.8; // 80% speed increase when sprinting
+    } else {
+        player.moveSpeedMultiplier = 1.0; // Normal speed
+    }
+}
+
 function update() {
     // Don't update if game is completely stopped or paused
     if (![GAME_STATE.PLAYING, GAME_STATE.HIDDEN].includes(currentGameState)) return;
@@ -5362,6 +5380,9 @@ function update() {
     // Update sanity system
     const deltaTime = 1/60; // Assuming 60 FPS
     sanitySystem.update(deltaTime);
+    
+    // Update sprint system
+    updateSprintSystem();
     
     handleMovement();
 
@@ -5874,6 +5895,21 @@ function update() {
         }
         
 
+        
+        // Update sprint stamina bar
+        if (sprintStaminaFill) {
+            const sprintPercent = (player.sprintStamina / player.maxSprintStamina) * 100;
+            sprintStaminaFill.style.width = sprintPercent + '%';
+            
+            // Change color based on sprint stamina level
+            if (player.sprintStamina <= 0.2) {
+                sprintStaminaFill.style.background = '#FF0000'; // Red for low stamina
+            } else if (player.sprintStamina <= 0.5) {
+                sprintStaminaFill.style.background = '#FFAA00'; // Orange for medium stamina
+            } else {
+                sprintStaminaFill.style.background = '#00FF00'; // Green for high stamina
+            }
+        }
         
         // Update sanity bar
         if (sanityFill) {
