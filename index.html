@@ -246,7 +246,7 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 40%; /* Increased from 35% */
+            height: 35%; /* Reduced to give more play area */
             display: none; /* Hidden by default */
             pointer-events: auto;
             z-index: 75;
@@ -260,49 +260,81 @@
         }
         #joystick-base {
             position: absolute;
-            bottom: 60px; /* Increased from 40px */
+            bottom: 50px; /* Slightly reduced for better positioning */
             left: 50%;
             transform: translateX(-50%);
-            width: 140px; /* Increased from 120px */
-            height: 140px; /* Increased from 120px */
-            background: rgba(128, 128, 128, 0.4); /* More visible */
-            border: 2px solid rgba(255,255,255,0.6); /* Added border */
+            width: 120px; /* Optimized size for better mobile playability */
+            height: 120px; /* Optimized size for better mobile playability */
+            background: rgba(128, 128, 128, 0.5); /* More visible */
+            border: 3px solid rgba(255,255,255,0.7); /* Thicker border for better visibility */
             border-radius: 50%;
         }
         #joystick-thumb {
             position: absolute;
-            width: 70px; /* Increased from 60px */
-            height: 70px; /* Increased from 60px */
-            background: rgba(200, 200, 200, 0.7); /* More visible */
-            border: 2px solid rgba(255,255,255,0.8); /* Added border */
+            width: 60px; /* Optimized size for better mobile playability */
+            height: 60px; /* Optimized size for better mobile playability */
+            background: rgba(200, 200, 200, 0.8); /* More visible */
+            border: 3px solid rgba(255,255,255,0.9); /* Thicker border for better visibility */
             border-radius: 50%;
-            top: 35px; /* Adjusted for new size */
-            left: 35px; /* Adjusted for new size */
+            top: 30px; /* Adjusted for new size */
+            left: 30px; /* Adjusted for new size */
             transition: transform 0.1s;
         }
         #action-buttons {
             position: absolute;
-            right: 8%; /* Adjusted from 5% */
-            bottom: 60px; /* Increased from 40px */
+            right: 5%; /* Optimized positioning */
+            bottom: 50px; /* Optimized positioning */
             display: flex;
             flex-direction: column;
-            gap: 15px; /* Added gap between buttons */
+            gap: 12px; /* Optimized gap between buttons */
         }
         .action-button {
-            width: 90px; /* Increased from 80px */
-            height: 90px; /* Increased from 80px */
-            background: rgba(200, 200, 200, 0.6); /* More visible */
-            border: 3px solid rgba(255,255,255,0.7); /* Thicker border */
+            width: 80px; /* Optimized size for better mobile playability */
+            height: 80px; /* Optimized size for better mobile playability */
+            background: rgba(200, 200, 200, 0.7); /* More visible */
+            border: 3px solid rgba(255,255,255,0.8); /* Thicker border for better visibility */
             border-radius: 50%;
             color: #fff;
-            font-size: 20px; /* Increased from 18px */
+            font-size: 18px; /* Optimized font size */
             font-weight: bold; /* Added weight */
             display: flex;
             justify-content: center;
             align-items: center;
             user-select: none;
             text-shadow: 1px 1px 2px #000; /* Added text shadow */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* Added shadow */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4); /* Enhanced shadow for better visibility */
+        }
+        
+        /* Mobile-specific HUD adjustments */
+        @media (max-width: 768px) {
+            #hud-debug {
+                font-size: 12px; /* Smaller font for mobile */
+                top: 5px;
+                left: 5px;
+            }
+            
+            #hud-flashlight {
+                font-size: 12px; /* Smaller font for mobile */
+                top: 5px;
+                right: 5px;
+            }
+            
+            #hud-main {
+                font-size: 12px; /* Smaller font for mobile */
+                top: 45%; /* Adjusted position to avoid mobile controls */
+                left: 5px;
+            }
+            
+            #hud-health {
+                bottom: 40%; /* Moved up to avoid mobile controls */
+                left: 5px;
+                font-size: 12px; /* Smaller font for mobile */
+            }
+            
+            #hud .bar {
+                width: 120px; /* Smaller bars for mobile */
+                height: 6px; /* Thinner bars for mobile */
+            }
         }
     </style>
 </head>
@@ -1106,6 +1138,12 @@ let closetInteriors = [];
 // sprites: {x,y,type,texture,opened?,contains?}
 let keys = {}, touchState = {};
 let message = { text: "Find the key. Don't get caught. Use SPACE on stairs to change floors.", life: 300 };
+
+// Camera smoothing variables
+let cameraSmoothing = {
+    gamepad: { targetAngle: 0, currentAngle: 0, smoothing: 0.15 },
+    mobile: { targetAngle: 0, currentAngle: 0, smoothing: 0.2 }
+};
 let lastShiftTime = 0, lastEnemyPathUpdateTime = 0;
 let popupLife = 0;
 let audioCues = { enabled: true, lastPlayed: 0, cooldown: 2000 };
@@ -4104,8 +4142,9 @@ function setupInputs() {
                     joyThumb.style.transform = `translate(${clampedDist * dx/dist}px, ${clampedDist * dy/dist}px)`;
                 }
                 if(touchState.look && touch.identifier === touchState.look.id){
-                    // Fixed inverted look controls
-                    player.angle -= (touch.clientX - touchState.look.lastX) * ROTATION_SPEED * 2.5;
+                    // Fixed inverted look controls with smoothing
+                    const deltaX = touch.clientX - touchState.look.lastX;
+                    cameraSmoothing.mobile.targetAngle -= deltaX * ROTATION_SPEED * 1.5; // Reduced multiplier for smoother control
                     touchState.look.lastX = touch.clientX;
                 }
             }
@@ -5153,10 +5192,10 @@ function handleMovement() {
         const stickX = gamepadState.leftStick.x;
         const stickY = gamepadState.leftStick.y;
         
-        // Forward/backward movement (corrected Y axis)
+        // Forward/backward movement (fixed Y axis - negative Y is forward)
         if (stickY !== 0) {
-            dx += Math.cos(player.angle) * stickY;
-            dy += Math.sin(player.angle) * stickY;
+            dx += Math.cos(player.angle) * (-stickY);
+            dy += Math.sin(player.angle) * (-stickY);
         }
         
         // Strafe movement (corrected X axis)
@@ -5166,30 +5205,40 @@ function handleMovement() {
         }
     }
     
-    // Right stick for looking
+    // Right stick for looking with smoothing
     if (gamepad && (gamepadState.rightStick.x !== 0 || gamepadState.rightStick.y !== 0)) {
-        const lookSensitivity = 0.03;
-        // Fixed inverted gamepad look controls
-        player.angle -= gamepadState.rightStick.x * lookSensitivity;
+        const lookSensitivity = 0.02; // Reduced sensitivity for smoother control
+        // Fixed inverted gamepad look controls with smoothing
+        cameraSmoothing.gamepad.targetAngle -= gamepadState.rightStick.x * lookSensitivity;
     }
+    
+    // Apply camera smoothing for gamepad
+    cameraSmoothing.gamepad.currentAngle += (cameraSmoothing.gamepad.targetAngle - cameraSmoothing.gamepad.currentAngle) * cameraSmoothing.gamepad.smoothing;
+    player.angle += cameraSmoothing.gamepad.currentAngle;
+    cameraSmoothing.gamepad.targetAngle = 0; // Reset target for next frame
+    
+    // Apply camera smoothing for mobile
+    cameraSmoothing.mobile.currentAngle += (cameraSmoothing.mobile.targetAngle - cameraSmoothing.mobile.currentAngle) * cameraSmoothing.mobile.smoothing;
+    player.angle += cameraSmoothing.mobile.currentAngle;
+    cameraSmoothing.mobile.targetAngle = 0; // Reset target for next frame
     
     // Mobile input - Fixed movement logic
     if (isMobile && touchState.move) {
         let moveX = touchState.move.currentX - touchState.joyCenter.x;
         let moveY = touchState.move.currentY - touchState.joyCenter.y;
-        let dist = Math.min(Math.sqrt(moveX*moveX + moveY*moveY) / 60, 1);
+        let dist = Math.min(Math.sqrt(moveX*moveX + moveY*moveY) / 50, 1); // Adjusted for new joystick size
         
         // Convert joystick input to world movement relative to player angle
         // Forward/backward based on Y axis (inverted for intuitive control)
         if (moveY !== 0) {
-            dx += Math.cos(player.angle) * (-moveY / 60) * 0.5;
-            dy += Math.sin(player.angle) * (-moveY / 60) * 0.5;
+            dx += Math.cos(player.angle) * (-moveY / 50) * 0.6; // Improved sensitivity
+            dy += Math.sin(player.angle) * (-moveY / 50) * 0.6; // Improved sensitivity
         }
         
         // Strafe left/right based on X axis
         if (moveX !== 0) {
-            dx += Math.cos(player.angle - Math.PI/2) * (moveX / 60) * 0.5;
-            dy += Math.sin(player.angle - Math.PI/2) * (moveX / 60) * 0.5;
+            dx += Math.cos(player.angle - Math.PI/2) * (moveX / 50) * 0.6; // Improved sensitivity
+            dy += Math.sin(player.angle - Math.PI/2) * (moveX / 50) * 0.6; // Improved sensitivity
         }
     }
 
