@@ -2331,30 +2331,28 @@ function generateMultiFloorMaze() {
         }
     }
     
-    // Smart exit placement: ensure exit is always reachable
-    let exitPlaced = false;
+    // Multiple exit placement: place exits on multiple floors for better gameplay
+    let exitsPlaced = 0;
+    const targetExits = Math.min(3, maxFloors); // Place up to 3 exits, one per floor
     
-    // Strategy 1: If we have working stairs, place exit on top floor
-    if (floorConnections.length > 0) {
-        const topFloor = floors[maxFloors - 1];
-        let exitPos = findRandomEmptyCell(topFloor);
+    // Place exits on multiple floors, prioritizing higher floors but ensuring variety
+    for (let floorIndex = 0; floorIndex < maxFloors && exitsPlaced < targetExits; floorIndex++) {
+        const floor = floors[floorIndex];
+        let exitPos = findRandomEmptyCell(floor);
         if (exitPos) {
-            topFloor[exitPos.y][exitPos.x] = 3; // Gold exit door
-            console.log("Placed exit on top floor (stairs available) at", exitPos.x, exitPos.y);
-            exitPlaced = true;
+            floor[exitPos.y][exitPos.x] = 3; // Gold exit door
+            console.log(`Placed exit on floor ${floorIndex} at (${exitPos.x}, ${exitPos.y})`);
+            exitsPlaced++;
         }
     }
     
-    // Strategy 2: If no stairs or stairs failed, place exit on current floor
-    if (!exitPlaced) {
-        console.log("No working stairs found, placing exit on current floor");
+    // Ensure at least one exit is placed
+    if (exitsPlaced === 0) {
+        console.log("No exits placed, placing fallback exit on current floor");
         // We'll place the exit in resetGame() after the current floor is set
-        exitPlaced = true;
     }
     
-    if (!exitPlaced) {
-        console.error("Failed to place exit anywhere");
-    }
+    console.log(`Placed ${exitsPlaced} exits across ${maxFloors} floors`);
 }
 
 function addDungeonObjects(floorMap, floorIndex) {
@@ -2494,7 +2492,7 @@ function resetGame() {
         if (p) sprites.push({ x: p.x + 0.5, y: p.y + 0.5, type: 'noiseMaker', texture: assets.noiseMakerSprite }); 
     }
     
-    // Smart exit placement: check if we need to place exit on current floor
+    // Check if exit exists on current floor (multiple exits system)
     let exitExists = false;
     for (let y = 0; y < MAP_SIZE; y++) {
         for (let x = 0; x < MAP_SIZE; x++) {
@@ -2506,35 +2504,14 @@ function resetGame() {
         if (exitExists) break;
     }
     
-    // If no exit exists on current floor and no stairs available, place exit here
-    if (!exitExists && floorConnections.length === 0) {
+    // If no exit exists on current floor, place one as fallback
+    if (!exitExists) {
         let exitPos = findWellConnectedExitPosition(map);
         if (exitPos) {
             map[exitPos.y][exitPos.x] = 3; // Gold exit door
-            console.log("Placed exit on current floor (no stairs) at", exitPos.x, exitPos.y);
+            console.log("Placed fallback exit on current floor at", exitPos.x, exitPos.y);
         } else {
-            console.error("Failed to place exit on current floor");
-        }
-    }
-    
-    // Additional safety: if we have stairs but no working connections, ensure exit is reachable
-    if (!exitExists && floorConnections.length > 0) {
-        // Check if any of the floor connections actually work
-        let workingStairs = false;
-        for (let conn of floorConnections) {
-            if (conn.floor === currentFloor && (conn.upX !== undefined || conn.downX !== undefined)) {
-                workingStairs = true;
-                break;
-            }
-        }
-        
-        if (!workingStairs) {
-            console.log("Stairs exist but connections are broken, placing exit on current floor");
-            let exitPos = findWellConnectedExitPosition(map);
-            if (exitPos) {
-                map[exitPos.y][exitPos.x] = 3; // Gold exit door
-                console.log("Placed fallback exit on current floor at", exitPos.x, exitPos.y);
-            }
+            console.error("Failed to place fallback exit on current floor");
         }
     }
     // Place some bronze doors
