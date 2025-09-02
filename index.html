@@ -276,8 +276,9 @@
             background: rgba(200, 200, 200, 0.8); /* More visible */
             border: 3px solid rgba(255,255,255,0.9); /* Thicker border for better visibility */
             border-radius: 50%;
-            top: 30px; /* Adjusted for new size */
-            left: 30px; /* Adjusted for new size */
+            top: 50%; /* Center vertically */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Perfect centering */
             transition: transform 0.1s;
         }
         #action-buttons {
@@ -4111,12 +4112,26 @@ function setupInputs() {
     if (isMobile) {
         mobileControls.style.display = 'block';
         const joyThumb = document.getElementById('joystick-thumb');
-        const joyBase = document.getElementById('joystick-base').getBoundingClientRect();
-        touchState = { move: null, look: null, joyCenter: { x: joyBase.left + joyBase.width/2, y: joyBase.top + joyBase.height/2 } };
+        
+        // Function to update joystick center position
+        const updateJoyCenter = () => {
+            const joyBase = document.getElementById('joystick-base').getBoundingClientRect();
+            touchState.joyCenter = { x: joyBase.left + joyBase.width/2, y: joyBase.top + joyBase.height/2 };
+            console.log("Joystick center updated:", touchState.joyCenter);
+        };
+        
+        touchState = { move: null, look: null, joyCenter: { x: 0, y: 0 } };
+        updateJoyCenter(); // Initial calculation
+        
+        // Update joystick center on window resize
+        window.addEventListener('resize', updateJoyCenter);
 
         canvas.addEventListener('touchstart', e => {
             // Block touch input if game is paused
             if (currentGameState === GAME_STATE.PAUSED) return;
+            
+            // Update joystick center position before processing touches
+            updateJoyCenter();
             
             for (let touch of e.changedTouches) {
                 if (touch.clientX < window.innerWidth / 2) {
@@ -4131,6 +4146,9 @@ function setupInputs() {
             // Block touch input if game is paused
             if (currentGameState === GAME_STATE.PAUSED) return;
             
+            // Update joystick center position
+            updateJoyCenter();
+            
             for (let touch of e.changedTouches) {
                 if(touchState.move && touch.identifier === touchState.move.id){
                     touchState.move.currentX = touch.clientX;
@@ -4138,8 +4156,9 @@ function setupInputs() {
                     let dx = touch.clientX - touchState.joyCenter.x;
                     let dy = touch.clientY - touchState.joyCenter.y;
                     let dist = Math.sqrt(dx*dx + dy*dy);
+                    const joyBase = document.getElementById('joystick-base').getBoundingClientRect();
                     let clampedDist = Math.min(dist, joyBase.width/2 - 30);
-                    joyThumb.style.transform = `translate(${clampedDist * dx/dist}px, ${clampedDist * dy/dist}px)`;
+                    joyThumb.style.transform = `translate(calc(-50% + ${clampedDist * dx/dist}px), calc(-50% + ${clampedDist * dy/dist}px))`;
                 }
                 if(touchState.look && touch.identifier === touchState.look.id){
                     // Fixed inverted look controls with smoothing
@@ -4151,7 +4170,7 @@ function setupInputs() {
         });
         canvas.addEventListener('touchend', e => {
              for (let touch of e.changedTouches) {
-                if(touchState.move && touch.identifier === touchState.move.id) { touchState.move = null; joyThumb.style.transform = `translate(0px, 0px)`; }
+                if(touchState.move && touch.identifier === touchState.move.id) { touchState.move = null; joyThumb.style.transform = `translate(-50%, -50%)`; }
                 if(touchState.look && touch.identifier === touchState.look.id) touchState.look = null;
             }
         });
@@ -5252,6 +5271,11 @@ function handleMovement() {
         let moveY = touchState.move.currentY - touchState.joyCenter.y;
         let dist = Math.min(Math.sqrt(moveX*moveX + moveY*moveY) / 50, 1); // Adjusted for new joystick size
         
+        // Debug joystick input
+        if (Math.abs(moveX) > 5 || Math.abs(moveY) > 5) {
+            console.log("Joystick input:", { moveX, moveY, dist });
+        }
+        
         // Convert joystick input to world movement relative to player angle
         // Forward/backward based on Y axis (inverted for intuitive control)
         if (moveY !== 0) {
@@ -5261,8 +5285,8 @@ function handleMovement() {
         
         // Strafe left/right based on X axis
         if (moveX !== 0) {
-            dx += Math.cos(player.angle - Math.PI/2) * (moveX / 50) * 0.6; // Improved sensitivity
-            dy += Math.sin(player.angle - Math.PI/2) * (moveX / 50) * 0.6; // Improved sensitivity
+            dx += Math.cos(player.angle + Math.PI/2) * (moveX / 50) * 0.6; // Fixed direction - use + instead of -
+            dy += Math.sin(player.angle + Math.PI/2) * (moveX / 50) * 0.6; // Fixed direction - use + instead of -
         }
     }
 
