@@ -635,7 +635,14 @@ let assets = {
     noiseMakerSprite: null,
     trapSprite: null,
     movingWallSprite: null,
-    mansionWallTexture: null
+    mansionWallTexture: null,
+    // New item sprites
+    adrenalineShotSprite: null,
+    stealthCloakSprite: null,
+    nightVisionGogglesSprite: null,
+    motionDetectorSprite: null,
+    emergencyFlareSprite: null,
+    tranquilizerDartSprite: null
 };
 
 function generateAssets() {
@@ -644,20 +651,26 @@ function generateAssets() {
     genCanvas.width = TILE_SIZE; genCanvas.height = TILE_SIZE;
     const gCtx = genCanvas.getContext('2d');
 
-    // Wall Texture - Improved with better brick pattern
-    gCtx.fillStyle = '#3a3a3a'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    // Enhanced Wall Texture - More detailed and atmospheric
+    gCtx.fillStyle = '#2d2d2d'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
     
-    // Add subtle noise texture
-    for (let x = 0; x < TILE_SIZE; x += 2) {
-        for (let y = 0; y < TILE_SIZE; y += 2) {
-            const noise = Math.random() * 0.1;
-            gCtx.fillStyle = `rgba(58, 58, 58, ${noise})`;
-            gCtx.fillRect(x, y, 2, 2);
+    // Add realistic stone texture with multiple layers
+    for (let x = 0; x < TILE_SIZE; x += 1) {
+        for (let y = 0; y < TILE_SIZE; y += 1) {
+            const noise1 = Math.random() * 0.15;
+            const noise2 = Math.random() * 0.08;
+            const noise3 = Math.random() * 0.05;
+            gCtx.fillStyle = `rgba(45, 45, 45, ${noise1})`;
+            gCtx.fillRect(x, y, 1, 1);
+            gCtx.fillStyle = `rgba(60, 60, 60, ${noise2})`;
+            gCtx.fillRect(x, y, 1, 1);
+            gCtx.fillStyle = `rgba(35, 35, 35, ${noise3})`;
+            gCtx.fillRect(x, y, 1, 1);
         }
     }
     
-    // Brick pattern with consistent spacing
-    gCtx.strokeStyle = '#2a2a2a'; gCtx.lineWidth = 1;
+    // Enhanced brick pattern with mortar lines
+    gCtx.strokeStyle = '#1a1a1a'; gCtx.lineWidth = 1.5;
     for (let i = 0; i < TILE_SIZE; i += 12) {
         gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
     }
@@ -666,29 +679,54 @@ function generateAssets() {
         gCtx.beginPath(); gCtx.moveTo(j + offset, 0); gCtx.lineTo(j + offset, TILE_SIZE); gCtx.stroke();
     }
     
-    // Add subtle highlights
+    // Add realistic mortar texture
+    gCtx.fillStyle = '#1a1a1a';
+    for (let i = 0; i < TILE_SIZE; i += 12) {
+        gCtx.fillRect(0, i, TILE_SIZE, 1);
+    }
+    for (let j = 0; j < TILE_SIZE; j += 24) {
+        let offset = (Math.floor(j / 12) % 2 === 0) ? 0 : 12;
+        gCtx.fillRect(j + offset, 0, 1, TILE_SIZE);
+    }
+    
+    // Add subtle highlights and shadows for depth
     gCtx.strokeStyle = '#4a4a4a'; gCtx.lineWidth = 0.5;
     for (let i = 0; i < TILE_SIZE; i += 12) {
         gCtx.beginPath(); gCtx.moveTo(0, i + 1); gCtx.lineTo(TILE_SIZE, i + 1); gCtx.stroke();
     }
     
+    // Add weathering effects
+    gCtx.fillStyle = 'rgba(100, 100, 100, 0.1)';
+    for (let i = 0; i < 8; i++) {
+        const x = Math.random() * TILE_SIZE;
+        const y = Math.random() * TILE_SIZE;
+        const size = Math.random() * 3 + 1;
+        gCtx.fillRect(x, y, size, size);
+    }
+    
     assets.wallTexture = new Image(); assets.wallTexture.src = genCanvas.toDataURL();
 
-    // Mansion Wall Texture (for stages 5+) - Enhanced wood paneling
+    // Enhanced Mansion Wall Texture (for stages 5+) - Rich wood paneling
     gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
-    gCtx.fillStyle = '#8B7355'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    gCtx.fillStyle = '#6B4E3D'; gCtx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
     
-    // Add wood grain texture
+    // Add rich wood grain texture with multiple layers
     for (let x = 0; x < TILE_SIZE; x += 1) {
         for (let y = 0; y < TILE_SIZE; y += 1) {
-            const grain = Math.sin(x * 0.3) * Math.cos(y * 0.1) * 0.05;
-            gCtx.fillStyle = `rgba(139, 115, 85, ${0.1 + grain})`;
+            const grain1 = Math.sin(x * 0.2) * Math.cos(y * 0.08) * 0.08;
+            const grain2 = Math.sin(x * 0.5) * Math.cos(y * 0.15) * 0.04;
+            const grain3 = Math.sin(x * 0.8) * Math.cos(y * 0.25) * 0.02;
+            gCtx.fillStyle = `rgba(107, 78, 61, ${0.15 + grain1})`;
+            gCtx.fillRect(x, y, 1, 1);
+            gCtx.fillStyle = `rgba(139, 115, 85, ${0.1 + grain2})`;
+            gCtx.fillRect(x, y, 1, 1);
+            gCtx.fillStyle = `rgba(160, 82, 45, ${0.05 + grain3})`;
             gCtx.fillRect(x, y, 1, 1);
         }
     }
     
-    // Elegant paneling with consistent spacing
-    gCtx.strokeStyle = '#654321'; gCtx.lineWidth = 1;
+    // Elegant paneling with beveled edges
+    gCtx.strokeStyle = '#4A2C17'; gCtx.lineWidth = 2;
     for (let i = 0; i < TILE_SIZE; i += 16) {
         gCtx.beginPath(); gCtx.moveTo(0, i); gCtx.lineTo(TILE_SIZE, i); gCtx.stroke();
     }
@@ -696,8 +734,8 @@ function generateAssets() {
         gCtx.beginPath(); gCtx.moveTo(j, 0); gCtx.lineTo(j, TILE_SIZE); gCtx.stroke();
     }
     
-    // Add subtle wood highlights
-    gCtx.strokeStyle = '#A0522D'; gCtx.lineWidth = 0.5;
+    // Add beveled panel effect
+    gCtx.strokeStyle = '#8B4513'; gCtx.lineWidth = 1;
     for (let i = 0; i < TILE_SIZE; i += 16) {
         gCtx.beginPath(); gCtx.moveTo(0, i + 1); gCtx.lineTo(TILE_SIZE, i + 1); gCtx.stroke();
     }
@@ -705,16 +743,40 @@ function generateAssets() {
         gCtx.beginPath(); gCtx.moveTo(j + 1, 0); gCtx.lineTo(j + 1, TILE_SIZE); gCtx.stroke();
     }
     
-    // Add decorative corners
-    gCtx.fillStyle = '#654321';
-    gCtx.fillRect(0, 0, 6, 6);
-    gCtx.fillRect(TILE_SIZE-6, 0, 6, 6);
-    gCtx.fillRect(0, TILE_SIZE-6, 6, 6);
-    gCtx.fillRect(TILE_SIZE-6, TILE_SIZE-6, 6, 6);
+    // Add shadow lines for depth
+    gCtx.strokeStyle = '#2F1B14'; gCtx.lineWidth = 0.5;
+    for (let i = 0; i < TILE_SIZE; i += 16) {
+        gCtx.beginPath(); gCtx.moveTo(0, i + 2); gCtx.lineTo(TILE_SIZE, i + 2); gCtx.stroke();
+    }
+    for (let j = 0; j < TILE_SIZE; j += 16) {
+        gCtx.beginPath(); gCtx.moveTo(j + 2, 0); gCtx.lineTo(j + 2, TILE_SIZE); gCtx.stroke();
+    }
     
-    // Add center decorative element
+    // Add ornate decorative corners
+    gCtx.fillStyle = '#4A2C17';
+    gCtx.fillRect(0, 0, 8, 8);
+    gCtx.fillRect(TILE_SIZE-8, 0, 8, 8);
+    gCtx.fillRect(0, TILE_SIZE-8, 8, 8);
+    gCtx.fillRect(TILE_SIZE-8, TILE_SIZE-8, 8, 8);
+    
+    // Add center decorative rosette
+    gCtx.fillStyle = '#8B4513';
+    gCtx.beginPath();
+    gCtx.arc(TILE_SIZE/2, TILE_SIZE/2, 6, 0, Math.PI * 2);
+    gCtx.fill();
     gCtx.fillStyle = '#A0522D';
-    gCtx.fillRect(TILE_SIZE/2-3, TILE_SIZE/2-3, 6, 6);
+    gCtx.beginPath();
+    gCtx.arc(TILE_SIZE/2, TILE_SIZE/2, 4, 0, Math.PI * 2);
+    gCtx.fill();
+    
+    // Add subtle aging and wear
+    gCtx.fillStyle = 'rgba(139, 69, 19, 0.1)';
+    for (let i = 0; i < 6; i++) {
+        const x = Math.random() * TILE_SIZE;
+        const y = Math.random() * TILE_SIZE;
+        const size = Math.random() * 2 + 1;
+        gCtx.fillRect(x, y, size, size);
+    }
     
     assets.mansionWallTexture = new Image(); assets.mansionWallTexture.src = genCanvas.toDataURL();
 
@@ -778,13 +840,51 @@ function generateAssets() {
     gCtx.fillStyle = '#111'; gCtx.fillRect(TILE_SIZE/2 - 8, TILE_SIZE * 0.1, 4, TILE_SIZE * 0.8);
     assets.closetTexture = new Image(); assets.closetTexture.src = genCanvas.toDataURL();
     
-    // Enemy Sprite
+    // Enhanced Enemy Sprite - More menacing and detailed
     gCtx.clearRect(0,0,TILE_SIZE,TILE_SIZE);
-    const grd = gCtx.createRadialGradient(TILE_SIZE/2, TILE_SIZE/2, 5, TILE_SIZE/2, TILE_SIZE/2, 30);
-    grd.addColorStop(0, 'rgba(20,0,0,1)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
-    gCtx.fillStyle = grd; gCtx.fillRect(0,0,TILE_SIZE,TILE_SIZE);
-    gCtx.fillStyle = '#ff0000'; gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.4, TILE_SIZE * 0.4, 4, 0, Math.PI * 2); gCtx.fill();
-    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.6, TILE_SIZE * 0.4, 4, 0, Math.PI * 2); gCtx.fill();
+    
+    // Create a more complex shadow/aura effect
+    const outerGrd = gCtx.createRadialGradient(TILE_SIZE/2, TILE_SIZE/2, 8, TILE_SIZE/2, TILE_SIZE/2, 35);
+    outerGrd.addColorStop(0, 'rgba(40,0,0,0.8)'); 
+    outerGrd.addColorStop(0.3, 'rgba(20,0,0,0.6)'); 
+    outerGrd.addColorStop(0.7, 'rgba(10,0,0,0.3)'); 
+    outerGrd.addColorStop(1, 'rgba(0,0,0,0)');
+    gCtx.fillStyle = outerGrd; gCtx.fillRect(0,0,TILE_SIZE,TILE_SIZE);
+    
+    // Add inner shadow for depth
+    const innerGrd = gCtx.createRadialGradient(TILE_SIZE/2, TILE_SIZE/2, 3, TILE_SIZE/2, TILE_SIZE/2, 15);
+    innerGrd.addColorStop(0, 'rgba(60,0,0,0.9)'); 
+    innerGrd.addColorStop(1, 'rgba(0,0,0,0)');
+    gCtx.fillStyle = innerGrd; gCtx.fillRect(0,0,TILE_SIZE,TILE_SIZE);
+    
+    // Enhanced glowing eyes with multiple layers
+    gCtx.fillStyle = '#ff4444'; 
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.4, TILE_SIZE * 0.4, 5, 0, Math.PI * 2); gCtx.fill();
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.6, TILE_SIZE * 0.4, 5, 0, Math.PI * 2); gCtx.fill();
+    
+    // Add inner eye glow
+    gCtx.fillStyle = '#ff8888'; 
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.4, TILE_SIZE * 0.4, 3, 0, Math.PI * 2); gCtx.fill();
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.6, TILE_SIZE * 0.4, 3, 0, Math.PI * 2); gCtx.fill();
+    
+    // Add pupil
+    gCtx.fillStyle = '#000000'; 
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.4, TILE_SIZE * 0.4, 1.5, 0, Math.PI * 2); gCtx.fill();
+    gCtx.beginPath(); gCtx.arc(TILE_SIZE * 0.6, TILE_SIZE * 0.4, 1.5, 0, Math.PI * 2); gCtx.fill();
+    
+    // Add menacing mouth/teeth
+    gCtx.fillStyle = '#ff0000';
+    gCtx.fillRect(TILE_SIZE * 0.45, TILE_SIZE * 0.6, TILE_SIZE * 0.1, 3);
+    gCtx.fillRect(TILE_SIZE * 0.35, TILE_SIZE * 0.65, 2, 2);
+    gCtx.fillRect(TILE_SIZE * 0.63, TILE_SIZE * 0.65, 2, 2);
+    
+    // Add subtle body outline
+    gCtx.strokeStyle = '#330000';
+    gCtx.lineWidth = 1;
+    gCtx.beginPath();
+    gCtx.arc(TILE_SIZE/2, TILE_SIZE/2, 12, 0, Math.PI * 2);
+    gCtx.stroke();
+    
     assets.enemySprite = new Image(); assets.enemySprite.src = genCanvas.toDataURL();
 
     // Container Closed - Made shorter
@@ -1012,7 +1112,21 @@ let audioCues = { enabled: true, lastPlayed: 0, cooldown: 2000 };
 let settings = { sens: 1, bright: 0, vol: 0.5, scale: 1, audioCues: true };
 try { const stored = JSON.parse(localStorage.getItem('mh_settings')||'{}'); Object.assign(settings, stored); } catch(e) {}
 audioCues.enabled = settings.audioCues;
-let inventory = { flashlight: false, vitamins: 0, lockpick: 0, vitActiveUntil: 0, smokeBomb: 0, noiseMaker: 0 };
+let inventory = { 
+    flashlight: false, 
+    vitamins: 0, 
+    lockpick: 0, 
+    vitActiveUntil: 0, 
+    smokeBomb: 0, 
+    noiseMaker: 0,
+    // New items
+    adrenalineShot: 0,
+    stealthCloak: 0,
+    nightVisionGoggles: false,
+    motionDetector: 0,
+    emergencyFlare: 0,
+    tranquilizerDart: 0
+};
 let rushEvent = { active: false, startTime: 0, duration: 8000, cooldown: 30000, lastTrigger: 0 };
 let stalkerEnemy = null;
 
@@ -1027,8 +1141,12 @@ function getMonsterTypesForStage(stage) {
         ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow'],
         // Stages 16-20: Add phantom
         ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom'],
-        // Stages 21+: All monsters
-        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom', 'nightmare']
+        // Stages 21-25: Add wraith
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom', 'wraith'],
+        // Stages 26-30: Add nightmare
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom', 'wraith', 'nightmare'],
+        // Stages 31+: Add ancient horror
+        ['hunter', 'ambusher', 'patrol', 'stalker', 'shadow', 'phantom', 'wraith', 'nightmare', 'ancientHorror']
     ];
     
     const setIndex = Math.min(Math.floor(stage / 5), monsterSets.length - 1);
@@ -1085,6 +1203,23 @@ function getMonsterStats(monsterType, stage) {
             memory: 25000,
             stealth: 0.2,
             scale: 1.3
+        },
+        wraith: {
+            speed: currentEnemySpeed * 0.7,
+            hearingRange: 18,
+            memory: 30000,
+            stealth: 0.1,
+            scale: 1.4,
+            canPhase: true // Can move through walls
+        },
+        ancientHorror: {
+            speed: currentEnemySpeed * 1.5,
+            hearingRange: 20,
+            memory: 40000,
+            stealth: 0.05,
+            scale: 1.6,
+            canSummon: true, // Can summon other enemies
+            teleport: true // Can teleport short distances
         }
     };
     
@@ -1195,6 +1330,8 @@ let sanitySystem = {
         this.increaseEnemySpawnRate();
         // Add audio hallucinations
         this.addAudioHallucinations();
+        // Play sanity loss sound
+        playSound('sanityLoss', 0.6);
     },
     
     activateLowSanityEffects: function() {
@@ -1324,6 +1461,110 @@ let dynamicEvents = {
     movingWalls: { active: false, startTime: 0, duration: 20000 },
     lightExtinguishing: { active: false, startTime: 0, duration: 10000 }
 };
+
+// Enhanced visual effects system
+let visualEffects = {
+    particles: [],
+    dustMotes: [],
+    lightFlicker: { active: false, intensity: 1.0, flickerRate: 0.02 },
+    screenShake: { active: false, intensity: 0, duration: 0 },
+    bloodDrips: [],
+    shadowWaves: []
+};
+
+// Particle system for atmospheric effects
+function createParticle(x, y, type, life = 60) {
+    return {
+        x: x,
+        y: y,
+        vx: (Math.random() - 0.5) * 0.02,
+        vy: (Math.random() - 0.5) * 0.02,
+        life: life,
+        maxLife: life,
+        type: type,
+        size: Math.random() * 2 + 1,
+        alpha: 1.0
+    };
+}
+
+function updateParticles() {
+    // Update dust motes
+    for (let i = visualEffects.dustMotes.length - 1; i >= 0; i--) {
+        let mote = visualEffects.dustMotes[i];
+        mote.x += mote.vx;
+        mote.y += mote.vy;
+        mote.life--;
+        mote.alpha = mote.life / mote.maxLife;
+        
+        if (mote.life <= 0) {
+            visualEffects.dustMotes.splice(i, 1);
+        }
+    }
+    
+    // Update blood drips
+    for (let i = visualEffects.bloodDrips.length - 1; i >= 0; i--) {
+        let drip = visualEffects.bloodDrips[i];
+        drip.y += 0.01;
+        drip.life--;
+        drip.alpha = drip.life / drip.maxLife;
+        
+        if (drip.life <= 0) {
+            visualEffects.bloodDrips.splice(i, 1);
+        }
+    }
+    
+    // Update shadow waves
+    for (let i = visualEffects.shadowWaves.length - 1; i >= 0; i--) {
+        let wave = visualEffects.shadowWaves[i];
+        wave.radius += 0.5;
+        wave.life--;
+        wave.alpha = wave.life / wave.maxLife;
+        
+        if (wave.life <= 0) {
+            visualEffects.shadowWaves.splice(i, 1);
+        }
+    }
+    
+    // Spawn new dust motes occasionally
+    if (Math.random() < 0.1) {
+        visualEffects.dustMotes.push(createParticle(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height,
+            'dust',
+            120 + Math.random() * 60
+        ));
+    }
+}
+
+function renderParticles() {
+    // Render dust motes
+    for (let mote of visualEffects.dustMotes) {
+        ctx.globalAlpha = mote.alpha * 0.3;
+        ctx.fillStyle = '#666';
+        ctx.beginPath();
+        ctx.arc(mote.x, mote.y, mote.size, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    // Render blood drips
+    for (let drip of visualEffects.bloodDrips) {
+        ctx.globalAlpha = drip.alpha * 0.8;
+        ctx.fillStyle = '#8B0000';
+        ctx.fillRect(drip.x, drip.y, 1, 3);
+    }
+    
+    // Render shadow waves
+    for (let wave of visualEffects.shadowWaves) {
+        ctx.globalAlpha = wave.alpha * 0.4;
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    
+    ctx.globalAlpha = 1.0; // Reset alpha
+}
 
 let achievementSystem = {
     unlocked: new Set(),
@@ -1472,6 +1713,11 @@ function generateSounds() {
     // Enemy AI sounds
     sounds.enemyHear = generateEnemyHearSound();
     sounds.enemyAlert = generateEnemyAlertSound();
+    
+    // New enhanced sounds
+    sounds.sanityLoss = generateSanityLossSound();
+    sounds.itemPickup = generateItemPickupSound();
+    sounds.closetOpen = generateClosetOpenSound();
 }
 
 function generateDoorCreak() {
@@ -1739,38 +1985,115 @@ function generateEnemyHearSound() {
 }
 
 function generateEnemyAlertSound() {
-    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.6, audioContext.sampleRate);
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.8, audioContext.sampleRate);
     const data = buffer.getChannelData(0);
     
     for (let i = 0; i < buffer.length; i++) {
         const t = i / audioContext.sampleRate;
         const growl = Math.sin(t * 180 * Math.PI * 2) * 0.4;
         const roar = Math.sin(t * 90 * Math.PI * 2) * 0.3;
-        const envelope = Math.exp(-t * 3) * 0.6;
-        data[i] = (growl + roar) * envelope;
+        const rumble = Math.sin(t * 45 * Math.PI * 2) * 0.2;
+        const envelope = Math.exp(-t * 2.5) * 0.7;
+        data[i] = (growl + roar + rumble) * envelope;
     }
     
     return buffer;
 }
 
-function playSound(soundName, volume = 1.0, loop = false) {
+// New enhanced sound effects
+function generateSanityLossSound() {
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 1.2, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < buffer.length; i++) {
+        const t = i / audioContext.sampleRate;
+        const whisper = Math.sin(t * 200 * Math.PI * 2) * 0.3;
+        const distortion = Math.sin(t * 50 * Math.PI * 2) * 0.2;
+        const echo = Math.sin(t * 100 * Math.PI * 2) * 0.1;
+        const envelope = Math.exp(-t * 1.5) * 0.5;
+        data[i] = (whisper + distortion + echo) * envelope;
+    }
+    
+    return buffer;
+}
+
+function generateItemPickupSound() {
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.4, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < buffer.length; i++) {
+        const t = i / audioContext.sampleRate;
+        const chime = Math.sin(t * 800 * Math.PI * 2) * 0.3;
+        const sparkle = Math.sin(t * 1200 * Math.PI * 2) * 0.2;
+        const envelope = Math.exp(-t * 8) * 0.6;
+        data[i] = (chime + sparkle) * envelope;
+    }
+    
+    return buffer;
+}
+
+function generateClosetOpenSound() {
+    const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.6, audioContext.sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < buffer.length; i++) {
+        const t = i / audioContext.sampleRate;
+        const creak = Math.sin(t * 150 * Math.PI * 2) * 0.4;
+        const wood = Math.sin(t * 300 * Math.PI * 2) * 0.2;
+        const envelope = Math.exp(-t * 3) * 0.5;
+        data[i] = (creak + wood) * envelope;
+    }
+    
+    return buffer;
+}
+
+function playSound(soundName, volume = 1.0, loop = false, x = null, y = null) {
     if (!audioEnabled || !audioContext || !sounds[soundName]) return;
     
     try {
         const source = audioContext.createBufferSource();
         const gainNode = audioContext.createGain();
+        const pannerNode = audioContext.createPanner();
         
         source.buffer = sounds[soundName];
         source.loop = loop;
         
-        gainNode.gain.value = volume * (settings.vol || 0.5);
+        // 3D audio positioning if coordinates provided
+        if (x !== null && y !== null) {
+            pannerNode.panningModel = 'HRTF';
+            pannerNode.distanceModel = 'exponential';
+            pannerNode.rolloffFactor = 2;
+            pannerNode.maxDistance = 20;
+            pannerNode.refDistance = 1;
+            
+            // Calculate relative position to player
+            const relX = x - player.x;
+            const relY = y - player.y;
+            const distance = Math.hypot(relX, relY);
+            
+            // Calculate angle relative to player's facing direction
+            const angle = Math.atan2(relY, relX) - player.angle;
+            
+            // Set 3D position
+            pannerNode.positionX.value = Math.cos(angle) * distance;
+            pannerNode.positionY.value = 0;
+            pannerNode.positionZ.value = Math.sin(angle) * distance;
+            
+            // Distance-based volume attenuation
+            const distanceVolume = Math.max(0.1, 1 - (distance / 15));
+            gainNode.gain.value = volume * (settings.vol || 0.5) * distanceVolume;
+            
+            source.connect(pannerNode);
+            pannerNode.connect(gainNode);
+        } else {
+            gainNode.gain.value = volume * (settings.vol || 0.5);
+            source.connect(gainNode);
+        }
         
-        source.connect(gainNode);
         gainNode.connect(audioContext.destination);
-        
         source.start();
         
-        return { source, gainNode };
+        return { source, gainNode, pannerNode };
     } catch (error) {
         console.warn("Failed to play sound:", soundName, error);
     }
@@ -3485,6 +3808,13 @@ function shiftMaze() {
     // Show prominent house shift popup
     showPopup("HOUSE HAS SHIFTED! ");
     
+    // Add screen shake effect
+    visualEffects.screenShake = {
+        active: true,
+        intensity: 8,
+        duration: 30
+    };
+    
     // Sanity effect from house shift
     sanitySystem.currentSanity = Math.max(0, sanitySystem.currentSanity + sanitySystem.events.houseShift);
     
@@ -4914,6 +5244,9 @@ function update() {
     // Update audio
     updateAudio();
     
+    // Update visual effects and particles
+    updateParticles();
+    
     // Update sanity system
     const deltaTime = 1/60; // Assuming 60 FPS
     sanitySystem.update(deltaTime);
@@ -4950,31 +5283,31 @@ function update() {
             } else if (sprite.type === 'flashlight') {
                 inventory.flashlight = true;
                 sprites.splice(i, 1);
-                playSound('itemPickup', 0.7);
+                playSound('itemPickup', 0.7, false, sprite.x, sprite.y);
                 message.text = "🔦 Flashlight acquired! Press F to toggle."; message.life = 200;
                 if (hudFlash) hudFlash.textContent = 'On';
                 if (flashlightStatus) flashlightStatus.textContent = 'On';
             } else if (sprite.type === 'vitamins') {
                 inventory.vitamins += 2;
                 sprites.splice(i, 1);
-                playSound('itemPickup', 0.6);
+                playSound('itemPickup', 0.6, false, sprite.x, sprite.y);
                 message.text = "💊 Vitamins acquired! (+2) Press V to use."; message.life = 200;
                 if (hudVits) hudVits.textContent = String(inventory.vitamins);
             } else if (sprite.type === 'lockpick') {
                 inventory.lockpick += 1;
                 sprites.splice(i, 1);
-                playSound('itemPickup', 0.8);
+                playSound('itemPickup', 0.8, false, sprite.x, sprite.y);
                 message.text = "🔓 Lockpick acquired! (+1) Use on bronze doors."; message.life = 200;
                 if (hudPicks) hudPicks.textContent = String(inventory.lockpick);
             } else if (sprite.type === 'smokeBomb') {
                 inventory.smokeBomb += 1;
                 sprites.splice(i, 1);
-                playSound('itemPickup', 0.7);
+                playSound('itemPickup', 0.7, false, sprite.x, sprite.y);
                 message.text = "💨 Smoke bomb acquired! (+1) Press Q to use."; message.life = 200;
             } else if (sprite.type === 'noiseMaker') {
                 inventory.noiseMaker += 1;
                 sprites.splice(i, 1);
-                playSound('itemPickup', 0.7);
+                playSound('itemPickup', 0.7, false, sprite.x, sprite.y);
                 message.text = "🔊 Noise maker acquired! (+1) Press Z to use."; message.life = 200;
             }
         }
@@ -5137,13 +5470,20 @@ function update() {
             let distToPlayer = Math.hypot(player.x - stalkerEnemy.x, player.y - stalkerEnemy.y);
             const inGrace = (Date.now() - stageStartTime) < (player.graceMs || 0);
             const inPanicInvincibility = (player.panicInvincibility||0) > Date.now();
-            if (currentGameState === GAME_STATE.PLAYING && !inGrace && !inPanicInvincibility && distToPlayer < 0.5) {
-                currentGameState = GAME_STATE.GAMEOVER; 
-                totalElapsedMs += Date.now() - stageStartTime;
-                saveRun(false);
-                showRunSummary(false);
-                if (hiddenIndicator) hiddenIndicator.style.display = 'none';
-            }
+                    if (currentGameState === GAME_STATE.PLAYING && !inGrace && !inPanicInvincibility && distToPlayer < 0.5) {
+            // Add dramatic screen shake before game over
+            visualEffects.screenShake = {
+                active: true,
+                intensity: 15,
+                duration: 20
+            };
+            
+            currentGameState = GAME_STATE.GAMEOVER; 
+            totalElapsedMs += Date.now() - stageStartTime;
+            saveRun(false);
+            showRunSummary(false);
+            if (hiddenIndicator) hiddenIndicator.style.display = 'none';
+        }
         }
     }
     
@@ -5160,6 +5500,13 @@ function update() {
             const inGrace = (Date.now() - stageStartTime) < (player.graceMs || 0);
             const inPanicInvincibility = (player.panicInvincibility||0) > Date.now();
             if (currentGameState === GAME_STATE.PLAYING && !inGrace && !inPanicInvincibility && distToPlayer < 0.5) { 
+                // Add dramatic screen shake before game over
+                visualEffects.screenShake = {
+                    active: true,
+                    intensity: 15,
+                    duration: 20
+                };
+                
                 currentGameState = GAME_STATE.GAMEOVER; 
                 totalElapsedMs += Date.now() - stageStartTime;
                 saveRun(false);
@@ -5180,7 +5527,7 @@ function update() {
                         // Enemy heard player - update last seen position
                         enemy.lastSeenPlayer = { x: player.x, y: player.y, time: Date.now() };
                         enemy.state = 'CHASING';
-                        playSound('enemyHear', 0.6);
+                        playSound('enemyHear', 0.6, false, enemy.x, enemy.y);
                         
                         // Update path to player (but respect spawn grace period)
                         if (Date.now() - lastEnemyPathUpdateTime > 500) {
@@ -5894,12 +6241,78 @@ function render() {
         }
     }
     
-    const gradient = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width * (inventory.flashlight ? 0.85 : 0.6));
+    // Enhanced lighting system with dynamic effects
+    let lightRadius = inventory.flashlight ? 0.85 : 0.6;
+    let lightIntensity = 1.0;
+    
+    // Add light flicker effect when sanity is low
+    if (sanitySystem.currentSanity <= sanitySystem.lowSanityThreshold) {
+        lightIntensity = 0.7 + Math.sin(Date.now() * 0.01) * 0.3;
+        lightRadius *= lightIntensity;
+    }
+    
+    // Add screen shake effect
+    let shakeX = 0, shakeY = 0;
+    if (visualEffects.screenShake.active) {
+        shakeX = (Math.random() - 0.5) * visualEffects.screenShake.intensity;
+        shakeY = (Math.random() - 0.5) * visualEffects.screenShake.intensity;
+        visualEffects.screenShake.duration--;
+        if (visualEffects.screenShake.duration <= 0) {
+            visualEffects.screenShake.active = false;
+        }
+    }
+    
+    // Create enhanced lighting gradient
+    const gradient = ctx.createRadialGradient(
+        canvas.width / 2 + shakeX, 
+        canvas.height / 2 + shakeY, 
+        0, 
+        canvas.width / 2 + shakeX, 
+        canvas.height / 2 + shakeY, 
+        canvas.width * lightRadius
+    );
+    
+    // Adjust gradient based on sanity and effects
+    let baseDarkness = 0.8 - (settings.bright || 0);
+    if (sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold) {
+        baseDarkness += 0.2; // Darker when sanity is critical
+    }
+    
     gradient.addColorStop(0, 'rgba(0,0,0,0)');
-    gradient.addColorStop(0.8, `rgba(0,0,0,${0.8 - (settings.bright||0)})`);
+    gradient.addColorStop(0.6, `rgba(0,0,0,${baseDarkness * 0.5})`);
+    gradient.addColorStop(0.8, `rgba(0,0,0,${baseDarkness})`);
     gradient.addColorStop(1, 'rgba(0,0,0,1)');
+    
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Render particles and visual effects
+    renderParticles();
+    
+    // Add blood drips when sanity is critically low
+    if (sanitySystem.currentSanity <= sanitySystem.criticalSanityThreshold && Math.random() < 0.01) {
+        visualEffects.bloodDrips.push({
+            x: Math.random() * canvas.width,
+            y: 0,
+            life: 120,
+            maxLife: 120,
+            alpha: 1.0
+        });
+    }
+    
+    // Add shadow waves during house shifts
+    if (Date.now() - lastShiftTime < 2000) {
+        if (Math.random() < 0.1) {
+            visualEffects.shadowWaves.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                radius: 0,
+                life: 60,
+                maxLife: 60,
+                alpha: 1.0
+            });
+        }
+    }
     
     if(message.life > 0) {
         ctx.font = '24px Courier New';
