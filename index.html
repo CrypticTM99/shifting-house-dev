@@ -4458,6 +4458,13 @@ function setupInputs() {
 }
 
 function tryInteract() {
+    // If player is hidden, exit the closet
+    if (currentGameState === GAME_STATE.HIDDEN) {
+        console.log("E key pressed while hidden, exiting closet...");
+        handleClosetExit();
+        return;
+    }
+    
     const px = Math.floor(player.x);
     const py = Math.floor(player.y);
     
@@ -4637,8 +4644,17 @@ function enterClosetDirectly(closetX, closetY) {
     player.y = closetData.y + 0.5;
     
     // Face the opening direction (toward the corridor to see through the slit)
+    // The direction field points from wall to corridor, so we need to face the opposite direction
+    // to look out from the interior through the opening
     const [dx, dy] = closetData.direction;
-    player.angle = Math.atan2(dy, dx);
+    player.angle = Math.atan2(-dy, -dx);
+    
+    console.log("Player positioned in closet:", {
+        position: [player.x, player.y],
+        angle: player.angle,
+        closetData: closetData,
+        direction: [dx, dy]
+    });
     
     // Enter hidden state
     currentGameState = GAME_STATE.HIDDEN;
@@ -4721,10 +4737,17 @@ function tryToggleHide() {
             player.y = closetData.y + 0.5;
             
             // Face the opening direction (toward the corridor to see through the slit)
+            // The direction field points from wall to corridor, so we need to face the opposite direction
+            // to look out from the interior through the opening
             const [dx, dy] = closetData.direction;
-            player.angle = Math.atan2(dy, dx);
+            player.angle = Math.atan2(-dy, -dx);
             
-            console.log("Positioned player in closet at", player.x, player.y, "facing", player.angle);
+            console.log("Positioned player in closet:", {
+                position: [player.x, player.y],
+                angle: player.angle,
+                closetData: closetData,
+                direction: [dx, dy]
+            });
             
             // Enter hidden state
             currentGameState = GAME_STATE.HIDDEN;
@@ -4759,8 +4782,9 @@ function handleClosetExit() {
         const [dx, dy] = closet.direction;
         
         // Calculate the exit position (in front of the closet)
-        const exitX = closet.facingX + dx;
-        const exitY = closet.facingY + dy;
+        // The exit should be on the opposite side of the wall from the interior
+        const exitX = closet.facingX - dx;
+        const exitY = closet.facingY - dy;
         
         // Enhanced safety check - ensure the exit position is truly safe
         if (exitX >= 0 && exitX < MAP_SIZE && exitY >= 0 && exitY < MAP_SIZE && 
@@ -4769,7 +4793,7 @@ function handleClosetExit() {
             
             player.x = exitX + 0.5;
             player.y = exitY + 0.5;
-            player.angle = Math.atan2(dy, dx); // Face away from the closet
+            player.angle = Math.atan2(-dy, -dx); // Face away from the closet
             placed = true;
             console.log("Exited closet using stored data, placed at:", exitX, exitY);
         }
@@ -4811,7 +4835,7 @@ function handleClosetExit() {
             if (isPositionAccessible(pos.x, pos.y) && !isWallCollision(pos.x, pos.y) && isPositionSafeAfterShift(pos.x, pos.y)) {
                 player.x = pos.x + 0.5;
                 player.y = pos.y + 0.5;
-                player.angle = Math.atan2(pos.dy, pos.dx);
+                player.angle = Math.atan2(-pos.dy, -pos.dx); // Face away from the closet
                 placed = true;
                 console.log("Exited closet using fallback, placed at:", pos.x, pos.y);
                 break;
